@@ -52,8 +52,25 @@ window.__ModuleLoader__.load({
           reference.release()
         }
       }
+      // Mounting is idempotent. A hot-reloaded or re-applied instance used to
+      // leave the previous pill (and its overlay) on the page, which showed up
+      // as two switches at different offsets. Drop whatever a previous instance
+      // left behind, including a pill the reverted header-slot build moved into
+      // the Conversation header.
+      for (const stale of document.querySelectorAll('.dsh-synapse-host, .dsh-synapse-switch')) stale.remove()
       const style = document.createElement('style')
-      style.textContent = '.dsh-synapse-switch{position:fixed;z-index:80;top:calc(var(--dsh-frame-chrome-top,var(--dsh-frame-top-clearance,0px)) + 12px);left:50%;display:flex;gap:2px;transform:translateX(-50%);border:1px solid #d1d5db;border-radius:999px;background:rgba(255,255,255,.96);padding:3px;backdrop-filter:blur(10px)}.dsh-synapse-switch button{height:28px;border:0;border-radius:999px;background:transparent;padding:0 11px;color:#6b7280;font:600 12px Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap}.dsh-synapse-switch button:hover{background:#f3f4f6;color:#111827}.dsh-synapse-switch button.active{background:#111827;color:#fff}.dsh-synapse-switch button:focus-visible{outline:2px solid #111827;outline-offset:2px}.dsh-synapse-overlay{position:fixed;z-index:100;inset:var(--dsh-frame-chrome-top,var(--dsh-frame-top-clearance,0px)) 0 0 0;background:#f5f7fa}.dsh-synapse-overlay.is-opening{visibility:hidden}.dsh-synapse-overlay[hidden]{display:none}.dsh-synapse-overlay iframe{display:block;width:100%;height:100%;border:0}html[data-fullscreen] .dsh-synapse-overlay{top:0}html[data-fullscreen] .dsh-synapse-switch{top:12px}'
+      // One coordinate, in both views. The switch is a page-level control, so it
+      // never takes part in the Conversation header layout: seating it in a slot
+      // made it jump between the header utilities and this position on every
+      // view change. Three details keep the single seat usable:
+      //   - `z-index` above the map overlay, so the map can always be left;
+      //   - `-webkit-app-region: no-drag`, because the pill sits below the
+      //     Windows title-bar drag band and would otherwise swallow no clicks;
+      //   - the `left` offset clears the header's left-hand content, which grows
+      //     rightward (title, lineage and agent-preset chips). Half the sidebar
+      //     width puts the pill over the centre of the content area instead of
+      //     the window; `min()` pulls it back in on narrow windows.
+      style.textContent = '.dsh-synapse-switch{position:fixed;z-index:200;top:calc(var(--dsh-frame-chrome-top,var(--dsh-frame-top-clearance,0px)) + 12px);left:min(calc(50% + 130px),calc(100% - 96px));display:flex;gap:2px;transform:translateX(-50%);border:1px solid #d1d5db;border-radius:999px;background:rgba(255,255,255,.96);padding:3px;backdrop-filter:blur(10px);-webkit-app-region:no-drag;box-shadow:0 2px 8px rgba(17,24,39,.1)}.dsh-synapse-switch button{height:28px;border:0;border-radius:999px;background:transparent;padding:0 11px;color:#6b7280;font:600 12px Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap;-webkit-app-region:no-drag}.dsh-synapse-switch button:hover{background:#f3f4f6;color:#111827}.dsh-synapse-switch button.active{background:#111827;color:#fff}.dsh-synapse-switch button:focus-visible{outline:2px solid #111827;outline-offset:2px}.dsh-synapse-overlay{position:fixed;z-index:100;inset:var(--dsh-frame-chrome-top,var(--dsh-frame-top-clearance,0px)) 0 0 0;background:#f5f7fa}.dsh-synapse-overlay.is-opening{visibility:hidden}.dsh-synapse-overlay[hidden]{display:none}.dsh-synapse-overlay iframe{display:block;width:100%;height:100%;border:0}html[data-fullscreen] .dsh-synapse-overlay{top:0}html[data-fullscreen] .dsh-synapse-switch{top:12px}'
       document.head.append(style)
       const host = document.createElement('div')
       host.className = 'dsh-synapse-host'
