@@ -51,8 +51,17 @@ function element(tagName) {
     hasAttribute(name) { return attributes.has(name) },
     addEventListener(type, listener) { listeners.set(type, listener) },
     removeEventListener(type) { listeners.delete(type) },
-    append(child) { node.children.push(child) },
-    remove() { node.removed = true },
+    // `append`/`remove` keep the parent link so removal really detaches, which
+    // is what the bridge relies on when it clears a previous instance's pill.
+    append(child) { child.parent = node; node.children.push(child) },
+    remove() {
+      node.removed = true
+      const parent = node.parent
+      if (parent === undefined || parent === null) return
+      const index = parent.children.indexOf(node)
+      if (index !== -1) parent.children.splice(index, 1)
+      node.parent = undefined
+    },
     scrollIntoView() { node.scrolled = true },
     querySelector(selector) { return descendants(node).find(child => matches(child, selector)) ?? null },
     dispatch(type, event) { listeners.get(type)?.(event) },
@@ -268,8 +277,20 @@ async function loadBridge(options = {}) {
     querySelector: selector => options.anchorKey !== undefined && selector.includes(options.anchorKey)
       ? Object.assign(new HTMLElement(), { scrollIntoView: () => { anchorScrolled = true } })
       : null,
+    // The bridge clears leftovers from a previous instance with a
+    // comma-separated selector list, so the double supports that shape.
+    querySelectorAll: selector => {
+      const selectors = selector.split(',').map(part => part.trim()).filter(part => part !== '')
+      return [...descendants(documentStub.body), ...descendants(documentStub.head)]
+        .filter(child => selectors.some(item => matches(child, item)))
+    },
   }
   documentStub.body.hasAttribute = () => false
+  // A pill a previous plugin instance left on the page.
+  const stalePill = element('div')
+  stalePill.className = 'dsh-synapse-switch'
+  stalePill.classList.add('dsh-synapse-switch')
+  if (options.stalePill === true) documentStub.body.append(stalePill)
 
   const windowStub = {
     location: { origin: ORIGIN },
@@ -301,8 +322,11 @@ async function loadBridge(options = {}) {
 
   const module = factory({})
   module.apply(ctx)
+  // Keep the mounted shell addressable: disposal detaches it from the body, so
+  // `body.children[0]` no longer resolves to it afterwards.
+  const shell = documentStub.body.children[0]
   // `send` posts through `frame.contentWindow`, which a real iframe populates.
-  const frame = documentStub.body.children[0].querySelector('iframe')
+  const frame = shell.querySelector('iframe')
   frame.contentWindow = { postMessage: message => { record(posted, message) } }
 
   return {
@@ -316,8 +340,10 @@ async function loadBridge(options = {}) {
     // Flip the Host-reported running bit the list row carries.
     setRunning: (id, running) => { rows.set(id, { ...rows.get(id), running }) },
     message: data => windowListeners.get('message')?.({ origin: ORIGIN, data: { source: 'dsh-synapse', ...data } }),
-    shell: () => documentStub.body.children[0],
-    overlay: () => documentStub.body.children[0]?.querySelector('.dsh-synapse-overlay'),
+    shell: () => shell,
+    switchElement: () => shell.querySelector('.dsh-synapse-switch'),
+    stalePill: () => stalePill,
+    overlay: () => shell.querySelector('.dsh-synapse-overlay'),
     anchorScrolled: () => anchorScrolled,
     chatChanged: () => { for (const listener of [...chatListeners]) listener() },
     listChanged: () => { for (const listener of [...listListeners]) listener() },
@@ -577,4 +603,14 @@ test('declares the client package of every service the bridge injects', async ()
     assert.ok(providers[service] !== undefined, `${service} has no known provider package`)
     assert.ok(manifest.dsh.client.inject.includes(providers[service]), `${service} needs ${providers[service]} in dsh.client.inject`)
   }
+})
+
+test('clears a pill a previous instance left on the page', async () => {
+  const bridge = await loadBridge({ stalePill: true })
+
+  // A hot reload or a second apply must not stack a second switch: the old one
+  // is detached before the fresh shell mounts.
+  assert.equal(bridge.stalePill().removed, true)
+  assert.equal(bridge.shell().className, 'dsh-synapse-host')
+  assert.ok(bridge.switchElement() !== null, 'the fresh pill is still mounted')
 })
