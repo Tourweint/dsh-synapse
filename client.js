@@ -76,6 +76,26 @@ window.__ModuleLoader__.load({
       host.className = 'dsh-synapse-host'
       host.innerHTML = '<div class="dsh-synapse-switch" role="group" aria-label="视图切换"><button type="button" data-view="dialog" class="active" aria-pressed="true">对话</button><button type="button" data-view="map" aria-pressed="false">会话地图</button></div><section class="dsh-synapse-overlay" hidden><iframe title="会话地图" src="/synapse/"></iframe></section>'
       document.body.append(host)
+      const switchEl = host.querySelector('.dsh-synapse-switch')
+      // Two live instances (a bundle loaded twice, or a sibling that outlived a
+      // redeploy) each mount a pill; no instance can see the other's apply. Let
+      // them converge instead of racing: every pill carries its mount stamp and
+      // every instance keeps the newest one, breaking ties on document order, so
+      // both sides agree on the same winner without a reload.
+      switchEl.dataset.mountedAt = String(Date.now())
+      const convergeSwitch = () => {
+        const pills = [...document.querySelectorAll('.dsh-synapse-switch')]
+        if (pills.length < 2) return
+        let keep = pills[0]
+        for (const pill of pills) {
+          const stamp = Number(pill.dataset?.mountedAt ?? 0)
+          const best = Number(keep.dataset?.mountedAt ?? 0)
+          if (stamp > best || (stamp === best && pills.indexOf(pill) > pills.indexOf(keep))) keep = pill
+        }
+        for (const pill of pills) if (pill !== keep) pill.remove()
+      }
+      convergeSwitch()
+      const convergeSwitchLater = window.setTimeout(convergeSwitch, 500)
       const dialogButton = host.querySelector('[data-view="dialog"]')
       const mapButton = host.querySelector('[data-view="map"]')
       const overlay = host.querySelector('.dsh-synapse-overlay')
@@ -344,6 +364,7 @@ window.__ModuleLoader__.load({
         liveSessions.clear()
         for (const reference of ownReferences.values()) reference.release()
         ownReferences.clear()
+        window.clearTimeout(convergeSwitchLater)
         host.remove()
         style.remove()
       }, 'synapse: web workspace switch')
