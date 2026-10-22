@@ -8,13 +8,31 @@ The plugin does not replace DSH models, tools, sessions, permissions, or the Web
 
 - DeepSeek Harness `>= 0.1.7-rc.2`; this revision targets that release's Host session and Client service interfaces.
 - Node.js `>= 22.19.0`.
-- The `web` profile; other profiles are not currently supported.
+- The right profile: the desktop app uses `desktop`, the `dsh web` command uses `web` (see below).
+
+## Which profile to install into
+
+DSH installs plugins per profile. Each profile keeps its own plugin list and `node_modules`, so the desktop app and the command line do not affect each other.
+
+| How you run DSH | Profile to use |
+|---|---|
+| Desktop app (DeepSeek Harness client) | `desktop` |
+| `dsh web` on the command line | `web` |
+| Both | Install once per profile |
+
+- Installing from the app's plugin page already targets the profile the app uses, so you do not pick one there.
+- **Quick self-check: if the "会话地图 / Session map" switch never appears, the plugin went into the other profile** — run the other command and install again.
+- A desktop install takes effect after **restarting the app**; a command-line install takes effect after restarting `dsh web` and refreshing the page.
 
 ## Installation
 
 ### Install from npm
 
 ```powershell
+# Desktop app
+corepack pnpm dsh plugin --profile desktop add dsh-synapse
+
+# Command line (dsh web)
 corepack pnpm dsh plugin --profile web add dsh-synapse
 ```
 
@@ -30,7 +48,7 @@ GitHub installs run the package `prepare` script, which validates JavaScript syn
 
 ### pnpm 10+ allowBuilds
 
-pnpm 10 and later may block build scripts for Git dependencies by default. If installation is blocked, copy the **complete key printed by pnpm** into the DSH Web profile's `pnpm-workspace.yaml`:
+pnpm 10 and later may block build scripts for Git dependencies by default. If installation is blocked, copy the **complete key printed by pnpm** into the matching profile's `pnpm-workspace.yaml`:
 
 ```yaml
 allowBuilds:
@@ -45,7 +63,7 @@ Use the complete key containing the tarball URL and commit, not the bare package
 corepack pnpm dsh plugin --profile web add link:E:\path\to\dsh-synapse
 ```
 
-The `link:` form references the local checkout directly and is recommended for development. In a normal run, restart `dsh web` and refresh the page after editing the plugin.
+The `link:` form references the local checkout directly and is recommended for development. In a normal run, restart the host (the desktop app or `dsh web`) and refresh the page after editing the plugin.
 
 ## Start DSH Web
 
@@ -150,7 +168,7 @@ Does not invalidate. The plugin never changes request headers, system prompts, o
 
 ## Known limitations
 
-- Only the `web` profile is supported.
+- Both the `desktop` (desktop app) and `web` (`dsh web`) profiles are supported; any other profile has to add the package to its own bundle list. Installing into the wrong profile does not error — the Session map switch simply never appears.
 - Two DSH Web instances sharing one profile write the same `workspaces.json`. A cross-process write lock and external-modification warnings exist, but last-writer-wins replacement remains possible; run one instance.
 - During v3 migration, legacy tool cards pair each call with the next result by order. Live events pair by `callId`.
 

@@ -22,11 +22,24 @@
 
 ## 快速安装
 
-需要 DeepSeek Harness `>= 0.1.7-rc.2`（本插件依赖该版本的 Host 会话与 Client 服务接口）、Node.js `>= 22.19.0`，以及 `web` profile。
+需要 DeepSeek Harness `>= 0.1.7-rc.2`（本插件依赖该版本的 Host 会话与 Client 服务接口）和 Node.js `>= 22.19.0`。
 
 > **兼容性提示：** 本版本包含破坏性变更，仅支持 DeepSeek Harness `>= 0.1.7-rc.2`，不再兼容更早版本。
 
+**先确认插件要装进哪一套 profile**。DSH 按 profile 分套安装插件，桌面 App 和命令行各用一套，互不影响：
+
+| 你平时怎么用 DSH | 要装的 profile | 安装命令 |
+|---|---|---|
+| 桌面 App（DeepSeek Harness 客户端） | `desktop` | `corepack pnpm dsh plugin --profile desktop add dsh-synapse` |
+| 命令行 `dsh web` / 浏览器访问 | `web` | `corepack pnpm dsh plugin --profile web add dsh-synapse` |
+| 两种都用 | 两套各装一次 | 两条命令都执行 |
+
+- 从 App 内的插件页面安装时，App 会自动装进它自己用的那套，不用管 profile。
+- **自检口诀：装完顶部看不到「会话地图」开关，就是装到另一套去了**，换成另一条命令再装一次即可。
+- 桌面 App 装完需要**重启 App**（Host 侧插件在启动时加载）；命令行装的，重启 `dsh web` 并刷新页面。
+
 ```powershell
+# 命令行方式：装好后启动
 corepack pnpm dsh plugin --profile web add dsh-synapse
 corepack pnpm dsh web
 ```
@@ -62,7 +75,7 @@ corepack pnpm dsh web
 - DSH session log 保存真实会话内容；Synapse 只投影已提交的事件。
 - Synapse 的画布布局数据保存在 `$DSH_HOME/synapse/`，删除它不会删除 DSH 会话。
 - 插件不修改 prompt、模型请求、工具 schema、provider 路由或可复用 KV-cache 前缀。
-- 内置 patch 仅支持 DSH 的 `web` profile。
+- 内置 patch 由 profile 的 bundle 列表引入，桌面 App（`desktop`）与命令行（`web`）都适用。
 
 ## 开发
 

@@ -4,16 +4,16 @@
 
 `dsh-synapse` is a presentation and organization layer for DeepSeek Harness conversations. It turns existing DSH sessions, turns, and forks into a visual map without replacing the systems that own those conversations.
 
-## Web profile integration
+## Profile integration
 
-The package contributes `cordis.patch.yml`, which inserts the `dsh-synapse` service into the DSH `web` profile. It reuses the existing DSH Web server and client runtime.
+The package contributes `cordis.patch.yml`, which inserts the `dsh-synapse` service into whichever DSH profile lists the package as a bundle — `desktop` for the desktop app, `web` for the `dsh web` command. It reuses the existing DSH Web server and client runtime.
 
 The plugin:
 
 - does not start a second HTTP server;
 - does not create a second model or agent runtime;
 - does not replace DSH authentication or permission checks;
-- does not support non-Web profiles unless those profiles explicitly add the plugin.
+- stays inert in a profile that does not list it, so installing it into the wrong profile only means the map never appears (see the installation table in the user guide).
 
 ## Conversation ownership
 
@@ -115,7 +115,7 @@ As a result, the plugin has no direct model-experience effect and does not inval
 
 ## Operational limitations
 
-- Only the `web` profile is supported by the bundled patch.
+- The bundled patch applies to any profile that lists the package as a bundle (`desktop`, `web`); a profile that does not list it stays untouched.
 - Canvas metadata and session content have different owners and backup requirements.
 - A single shared metadata file is not a multi-writer database.
 - Browser state can be cleared independently from DSH Home data.

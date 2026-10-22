@@ -8,13 +8,31 @@
 
 - DeepSeek Harness `>= 0.1.7-rc.2`（本插件依赖该版本的 Host 会话与 Client 服务接口）。
 - Node.js `>= 22.19.0`。
-- 使用 `web` profile；其他 profile 暂不支持。
+- 选对 profile：桌面 App 用 `desktop`，命令行 `dsh web` 用 `web`（见下节）。
+
+## 装到哪一套 profile
+
+DSH 按 profile 分套安装插件：每套 profile 有自己的插件清单和 `node_modules`，桌面 App 和命令行各用一套，互不影响。
+
+| 你平时怎么用 DSH | 要装的 profile |
+|---|---|
+| 桌面 App（DeepSeek Harness 客户端） | `desktop` |
+| 命令行 `dsh web` / 浏览器访问 | `web` |
+| 两种都用 | 两套各装一次 |
+
+- 从 App 内的插件页面安装时，App 会自动装进它自己用的那套，无需关心 profile。
+- **自检口诀：装完顶部看不到「会话地图」开关，就是装到另一套去了**，换成另一条命令再装一次即可。
+- 桌面 App 装完需要**重启 App**；命令行装的，重启 `dsh web` 并刷新页面。
 
 ## 安装
 
 ### 从 npm 安装
 
 ```powershell
+# 桌面 App
+corepack pnpm dsh plugin --profile desktop add dsh-synapse
+
+# 命令行 dsh web
 corepack pnpm dsh plugin --profile web add dsh-synapse
 ```
 
@@ -30,7 +48,7 @@ GitHub 安装会运行本包的 `prepare` 脚本，通过 `node --check` 验证 
 
 ### pnpm 10+ 的 allowBuilds
 
-pnpm 10 及之后版本默认可能阻止 Git 依赖执行构建脚本。如果安装被拦截，请将 pnpm 输出的**完整键**复制到 DSH Web profile 的 `pnpm-workspace.yaml`：
+pnpm 10 及之后版本默认可能阻止 Git 依赖执行构建脚本。如果安装被拦截，请将 pnpm 输出的**完整键**复制到对应 profile 的 `pnpm-workspace.yaml`：
 
 ```yaml
 allowBuilds:
@@ -45,7 +63,7 @@ allowBuilds:
 corepack pnpm dsh plugin --profile web add link:E:\path\to\dsh-synapse
 ```
 
-`link:` 会直接引用本地 checkout，适合开发和调试。普通运行模式下修改代码后，建议重启 `dsh web` 并刷新页面。
+`link:` 会直接引用本地 checkout，适合开发和调试。普通运行模式下修改代码后，建议重启宿主（桌面 App 或 `dsh web`）并刷新页面。
 
 ## 启动
 
@@ -143,7 +161,7 @@ $DSH_HOME/synapse/
 
 ## 已知限制
 
-- 仅支持 `web` profile。
+- 支持 `desktop`（桌面 App）与 `web`（命令行 `dsh web`）两套 profile；其他自定义 profile 需要自己把插件加入 bundle 列表。装错 profile 时插件不会报错，只是顶部不会出现「会话地图」。
 - 两个 DSH Web 实例共享同一个 profile 时会写入同一个 `workspaces.json`。虽然存在跨进程写锁和外部修改警告，仍可能出现最后写入覆盖，请只运行一个实例。
 - v3 数据迁移时，旧工具卡片按顺序将每次调用与下一条结果配对；实时事件使用 `callId`。
 
