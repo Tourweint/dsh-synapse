@@ -13,6 +13,16 @@ const MAX_NOTE_LENGTH = 4_000
 const MAX_PROJECTION_LENGTH = 8_000
 const PROJECTION_TRUNCATED_SUFFIX = '\n——…（详情查看全文）'
 const TOPIC_COLORS = ['#0f766e', '#2563eb', '#be123c', '#7c3aed', '#b45309']
+// The harness writes `user/message` rows of its own (runtime snapshots, skill
+// catalogues). A canvas card must stand for a turn a person actually typed, so
+// an injected row is recognised by its structured `source.kind` instead of by
+// guessing at the prose (issue #31 / #23).
+const INJECTED_USER_SOURCE_KINDS = new Set(['skill-catalog'])
+// Stored projections keep no raw event to re-read, so the one-time cleanup
+// recognises a legacy catalogue card by the markers only that injection emits:
+// the `<system-reminder>` opener plus the `<available_skills>` index it wraps.
+const SKILL_CATALOG_OPENER = '<system-reminder>'
+const SKILL_CATALOG_MARKER = '<available_skills>'
 const LOCK_STALE_MS = 60_000
 // Deferred (event-projection) writes coalesce into one save per window, so a
 // burst of session events costs a single full-state write instead of one per
@@ -536,7 +546,7 @@ function normalizeState(value) {
       ...workspace,
       threads: Array.isArray(workspace.threads) ? workspace.threads.map(thread => {
         if (Array.isArray(thread.messages)) {
-          const messages = thread.messages.filter(message => !isRuntimeContextMessage(message))
+          const messages = thread.messages.filter(message => !isInjectedUserMessage(message))
           if (messages.length !== thread.messages.length) migrated = true
           return { ...thread, messages }
         }
@@ -649,6 +659,7 @@ function requiredText(value, maxLength, field) {
 function projectableEvent(event) {
   switch (event.type) {
     case 'user/message': {
+      if (isInjectedUserSource(event.data?.source)) return null
       const text = contentText(event.data.content)
       return isRuntimeContextText(text) ? null : noteProjection('user', text)
     }
@@ -692,6 +703,29 @@ function isRuntimeContextText(text) {
 
 function isRuntimeContextMessage(message) {
   return message?.kind === 'user' && isRuntimeContextText(message.text)
+}
+
+/** A harness-authored turn, identified by its structured provenance. */
+function isInjectedUserSource(source) {
+  return typeof source?.kind === 'string' && INJECTED_USER_SOURCE_KINDS.has(source.kind)
+}
+
+/**
+ * Recognises a stored skill catalogue. Only the harness emits both markers
+ * together, so a person quoting one of them is still kept as a real turn.
+ */
+function isSkillCatalogText(text) {
+  if (typeof text !== 'string') return false
+  const head = text.trimStart()
+  return head.startsWith(SKILL_CATALOG_OPENER) && head.includes(SKILL_CATALOG_MARKER)
+}
+
+/**
+ * Whether a stored message must stay out of the canvas graph: runtime
+ * snapshots and skill catalogues were never a turn the user took.
+ */
+function isInjectedUserMessage(message) {
+  return message?.kind === 'user' && (isRuntimeContextMessage(message) || isSkillCatalogText(message.text))
 }
 
 function contentText(content) {

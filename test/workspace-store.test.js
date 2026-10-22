@@ -163,6 +163,64 @@ test('does not persist the DSH runtime context as a user conversation turn', asy
   assert.deepEqual(graph.threads[0].messages.map(message => message.text), ['你好', '你好，我是助手。'])
 })
 
+test('skips the harness skill catalogue instead of projecting it as a question', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-skill-catalog-'))
+  const store = new WorkspaceStore(join(directory, 'state.json'))
+  await store.projectSession(hostSession({
+    id: 'skill-catalog', header: { cwd: 'C:\\work\\canvas' }, inheritedEventCount: 0,
+    events: [
+      { type: 'user/message', seq: 1, time: 1, data: { content: [{ type: 'text', text: '现在这个插件是 0.4.2 还是 0.4.1' }], source: { kind: 'user', rpcId: 'r-1' } } },
+      {
+        type: 'user/message', seq: 2, time: 2,
+        data: {
+          content: [{ type: 'text', text: '<system-reminder>\nA skill is a reusable set of task-specific instructions.\n<available_skills>\n- `office-xlsx`\n</available_skills>' }],
+          source: { kind: 'skill-catalog', form: 'catalog', entries: [] },
+        },
+      },
+      { type: 'assistant/message', seq: 3, time: 3, data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: '现在是 0.4.2。' }] } } },
+    ],
+  }))
+
+  const [workspace] = await store.list()
+  const graph = await store.get(workspace.id)
+  const thread = graph.threads[0]
+  // The catalogue never becomes a turn, so the answer stays on the real question
+  // and the thread title comes from that question instead of the injected text.
+  assert.deepEqual(thread.messages.map(message => message.kind), ['user', 'assistant'])
+  assert.deepEqual(thread.messages.map(message => message.text), ['现在这个插件是 0.4.2 还是 0.4.1', '现在是 0.4.2。'])
+  assert.equal(thread.title, '现在这个插件是 0.4.2 还是 0.4.1')
+})
+
+test('drops a stored skill catalogue card on load and rewrites the file', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-catalog-prune-'))
+  const dataFile = join(directory, 'state.json')
+  const at = '2026-01-01T00:00:00.000Z'
+  await writeFile(dataFile, JSON.stringify({
+    version: 4,
+    hiddenSessionIds: [],
+    workspaces: [{
+      id: 'w-1', kind: 'dsh', cwd: 'C:\\work\\x', title: 'x', createdAt: at, updatedAt: at,
+      threads: [{
+        id: 't-1', title: 's', parentId: null, dshSessionId: 's-1', dshSessionTitle: null,
+        color: '#0f766e', position: { x: 86, y: 82 }, sourceSeedLength: null, createdAt: at, updatedAt: at,
+        messages: [
+          { id: 'm-1', kind: 'user', text: '真实提问', sourceSeq: 1, at, process: [] },
+          { id: 'm-2', kind: 'user', text: '<system-reminder>\nA skill is a reusable set.<available_skills>- `x`</available_skills>', sourceSeq: 2, at, process: [] },
+          { id: 'm-3', kind: 'assistant', text: '回答', sourceSeq: 3, at, process: [] },
+        ],
+      }],
+    }],
+  }))
+
+  const store = new WorkspaceStore(dataFile)
+  await store.ready
+  const graph = await store.get('w-1')
+  assert.deepEqual(graph.threads[0].messages.map(message => message.id), ['m-1', 'm-3'])
+  const persisted = await readFile(dataFile, 'utf8')
+  assert.ok(!persisted.includes('<available_skills>'))
+})
+
+
 test('merges a browser fork callback with an already projected DSH fork', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-fork-'))
   const store = new WorkspaceStore(join(directory, 'state.json'))
