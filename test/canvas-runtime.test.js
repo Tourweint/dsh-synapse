@@ -1,6 +1,31 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import vm from 'node:vm'
+
+test('clamps the canvas zoom to a 20% floor and a 400% ceiling', async () => {
+  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const snippet = source.slice(source.indexOf('function zoomCanvas'), source.indexOf('function zoomCanvasAtCenter'))
+  const context = {
+    state: { zoom: 1, canvasCamera: { x: 0, y: 0 } },
+    applyCanvasTransform() {},
+    syncCanvasViewport() {},
+    document: { querySelector: () => null },
+    window: { requestAnimationFrame: () => {} },
+    HTMLElement: class {},
+  }
+  vm.createContext(context)
+  vm.runInContext(`${snippet};globalThis.zoomCanvas = zoomCanvas`, context)
+  const viewport = { getBoundingClientRect: () => ({ left: 0, top: 0 }), querySelector: () => null }
+
+  context.zoomCanvas(viewport, 0.05, 100, 100)
+  assert.equal(context.state.zoom, 0.2)
+  context.zoomCanvas(viewport, 9, 100, 100)
+  assert.equal(context.state.zoom, 4)
+  // Inside the range the requested step is kept, rounded to whole percent.
+  context.zoomCanvas(viewport, 0.5, 100, 100)
+  assert.equal(context.state.zoom, 0.5)
+})
 
 test('uses one camera transform without browser scroll coordinates', async () => {
   const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
