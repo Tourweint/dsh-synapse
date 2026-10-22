@@ -1340,7 +1340,8 @@ function canvasViewport(target) {
 }
 
 function zoomCanvas(viewport, nextZoom, clientX, clientY) {
-  const zoom = Math.min(4, Math.max(.6, Math.round(nextZoom * 100) / 100))
+  // 20% keeps a whole map readable as an overview; 400% is the detail ceiling.
+  const zoom = Math.min(4, Math.max(.2, Math.round(nextZoom * 100) / 100))
   if (zoom === state.zoom) return
   const bounds = viewport.getBoundingClientRect()
   const localX = clientX - bounds.left

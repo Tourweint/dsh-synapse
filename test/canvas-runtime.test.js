@@ -154,6 +154,8 @@ test('renders markdown tables and allows higher canvas zoom', async () => {
   assert.match(markdown, /<table><thead>/)
   assert.match(markdown, /isTableDelimiter/)
   assert.match(source, /Math\.min\(4,/)
+  // The map zooms out to a 20% overview and in to 400%.
+  assert.match(source, /Math\.max\(\.2,/)
 })
 
 test('renders the refactored detail view with role-based messages', async () => {
