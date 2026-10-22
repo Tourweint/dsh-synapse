@@ -57,6 +57,10 @@ const state = {
   summaries: [], workspace: null, activeId: null, selectedCardId: null, mode: 'canvas', zoom: 1, currentDsh: null, sidebarCollapsed: false,
   dshWorkspaces: [], selectedDshWorkspaceId: null,
   historyBySession: new Map(), historyRequests: new Map(), pendingReplies: new Map(), pendingRpc: new Map(), liveReplies: new Map(),
+  // Message bodies are not part of the workspace payload; they are fetched per
+  // screenful and cached here (issue #42).
+  bodies: new Map(), bodyRequests: new Set(), bodyFailures: new Set(), bodiesLoaded: new Set(),
+  archivedSessionIds: new Set(),
   draft: null, error: '', workspaceLoad: 0, branchAnchors: new Map(savedBranchAnchors), cardPositions: new Map(savedCardPositions), collapsedCardIds: new Set(savedCollapsedCards), quickPhrases: savedQuickPhrases, quickPhraseEditorOpen: false,
   dragging: false, canvasGesture: false, canvasRefreshAfter: 0, canvasViewInitialized: false, canvasCamera: { x: 0, y: 0 }, mapCardSessionSwitches: new Set(),
   expandedMessageIds: new Set(),
@@ -299,6 +303,8 @@ async function archiveThread(thread) {
   } else {
     state.activeId = null
   }
+  // Archive in DSH as well, so both sides agree on one archive set (#21 / #19).
+  if (thread.dshSessionId !== null) post('synapse:archive-session', { sessionId: thread.dshSessionId })
   await refreshSummaries()
 }
 
@@ -392,10 +398,25 @@ async function submitDraft() {
 }
 
 function threadsById() { return new Map((state.workspace?.threads ?? []).map(thread => [thread.id, thread])) }
+
+/**
+ * A session archived in DSH must not keep drawing cards here: the canvas and
+ * the sidebar both read this filtered list (issue #21 / #19). Threads without a
+ * DSH session (canvas-only notes) are never hidden by DSH's state.
+ */
+function visibleThreads(threads) {
+  if (state.archivedSessionIds.size === 0) return threads
+  return threads.filter(thread => thread.dshSessionId === null || !state.archivedSessionIds.has(thread.dshSessionId))
+}
 function persistedMessagesFor(thread) { return state.historyBySession.get(thread.dshSessionId) ?? thread.messages ?? [] }
 
 function pendingUserIndex(messages, pending) {
-  return messages.findLastIndex(message => message.kind === 'user' && message.text === pending.text && new Date(message.at).getTime() >= pending.at - 2_000)
+  // The stored copy may be a preview, so match by full length and by the
+  // preview prefix instead of by exact text equality.
+  return messages.findLastIndex(message => message.kind === 'user'
+    && new Date(message.at).getTime() >= pending.at - 2_000
+    && (message.text === pending.text
+      || (typeof message.text === 'string' && pending.text.startsWith(message.text.replace(/…$/, '')))))
 }
 
 function settlePendingReply(thread, messages) {
@@ -411,7 +432,15 @@ function messagesFor(thread) {
   // A runtime-context snapshot is internal DSH state, never a user turn.
   // Filter here as well as during persistence so existing saved workspaces
   // immediately render one question and its answer as one card.
-  const messages = persistedMessagesFor(thread).filter(message => !(message.kind === 'user' && typeof message.text === 'string' && message.text.trimStart().startsWith('Current runtime context. This snapshot supersedes earlier runtime-context snapshots.')))
+  const stored = persistedMessagesFor(thread).filter(message => !(message.kind === 'user' && typeof message.text === 'string' && message.text.trimStart().startsWith('Current runtime context. This snapshot supersedes earlier runtime-context snapshots.')))
+  // Swap in hydrated bodies where present: the stored text is only a preview.
+  const bodies = state.bodies.get(thread.id)
+  const messages = bodies === undefined || bodies.size === 0
+    ? stored
+    : stored.map(message => {
+      const body = bodies.get(message.sourceSeq)
+      return body === undefined ? message : { ...message, text: body.text, process: Array.isArray(body.process) ? body.process : message.process, truncated: body.truncated === true, hydrated: true }
+    })
   const pending = state.pendingReplies.get(thread.dshSessionId)
   if (pending === undefined) return messages
   if (settlePendingReply(thread, messages)) {
@@ -700,6 +729,7 @@ function conversationCards(threads) {
         position,
         positionLocked,
         question: question.text,
+        questionMessage: question,
         answer,
         error,
         processCount,
@@ -1034,7 +1064,7 @@ function syncCanvasViewport() {
 }
 
 function renderCanvas() {
-  const threads = state.workspace?.threads ?? []
+  const threads = visibleThreads(state.workspace?.threads ?? [])
   if (threads.length === 0 && state.draft?.kind !== 'new') return `<section class="empty-canvas"><strong>当前工作目录还没有 DSH 对话。</strong><p>点击新会话，在画布中输入第一条消息。</p><div><button class="primary" type="button" data-action="create-session">新建会话</button></div></section>`
   const allCards = conversationCards(threads)
   const graph = conversationGraphView(allCards)
@@ -1194,7 +1224,7 @@ function render() {
     }
   }
   const workspace = state.workspace
-  const threads = workspace?.threads ?? []
+  const threads = visibleThreads(workspace?.threads ?? [])
   const view = state.mode === 'thread' ? renderThread() : renderCanvas()
   const choices = workspaceChoices()
   const selectedWorkspaceId = state.selectedDshWorkspaceId ?? workspace?.id
@@ -1238,6 +1268,74 @@ function render() {
       const target = app.querySelector(`[data-message-seq="${CSS.escape(seq)}"]`)
       if (target instanceof HTMLElement) target.scrollIntoView({ block: 'start' })
     })
+  }
+  // Card faces and the detail view only hold previews: pull the real bodies for
+  // whatever is on screen right now (issue #42).
+  void hydrateBodies()
+}
+
+/**
+ * Ask the Host for the bodies of the messages currently on screen. The
+ * workspace payload carries previews only, so each newly mounted card and each
+ * opened detail view hydrates from the DSH session log.
+ */
+async function hydrateBodies() {
+  const wanted = new Map()
+  const add = (threadId, message) => {
+    if (threadId === undefined || message === null || message === undefined) return
+    if (!Number.isInteger(message.sourceSeq)) return
+    if (state.bodies.get(threadId)?.has(message.sourceSeq) === true) return
+    const key = `${threadId}:${message.sourceSeq}`
+    if (state.bodyRequests.has(key) || state.bodyFailures.has(key)) return
+    const seqs = wanted.get(threadId) ?? new Set()
+    seqs.add(message.sourceSeq)
+    wanted.set(threadId, seqs)
+  }
+  const addCard = card => {
+    if (card === undefined) return
+    add(card.dshThreadId, card.questionMessage)
+    add(card.dshThreadId, card.answer)
+    add(card.dshThreadId, card.error)
+  }
+  if (state.mode === 'thread' && state.activeId !== null) {
+    const thread = currentThread()
+    if (thread !== null && !state.bodiesLoaded.has(thread.id)) {
+      for (const message of persistedMessagesFor(thread)) add(thread.id, message)
+    }
+  } else if (state.mode === 'canvas') {
+    for (const cardId of state.mountedCardIds) addCard(state.canvasCardsById?.get(cardId))
+  }
+  if (state.inspectorCardId !== null) addCard(state.canvasCardsById?.get(state.inspectorCardId))
+  for (const [threadId, seqs] of wanted) void fetchBodies(threadId, [...seqs])
+}
+
+async function fetchBodies(threadId, seqs) {
+  if (seqs.length === 0) return
+  const keys = seqs.map(seq => `${threadId}:${seq}`)
+  for (const key of keys) state.bodyRequests.add(key)
+  try {
+    const body = await api(`/synapse/api/threads/${threadId}/full?seqs=${seqs.join(',')}`)
+    const cached = state.bodies.get(threadId) ?? new Map()
+    for (const [seq, payload] of Object.entries(body.messages ?? {})) {
+      if (payload === null || typeof payload !== 'object') continue
+      cached.set(Number(seq), payload)
+    }
+    state.bodies.set(threadId, cached)
+    if (state.mode === 'thread' && state.activeId === threadId) state.bodiesLoaded.add(threadId)
+    if (body.unavailable === true) {
+      // Archived or already removed from DSH: keep the previews, stop asking.
+      for (const message of persistedMessagesFor(currentThread() ?? { messages: [] })) {
+        if (Number.isInteger(message.sourceSeq)) state.bodyFailures.add(`${threadId}:${message.sourceSeq}`)
+      }
+      state.bodiesLoaded.add(threadId)
+    }
+    if (state.mode === 'thread' || state.inspectorCardId !== null) render()
+    else if (canReplaceView()) render()
+    else deferCanvasRefresh(400)
+  } catch {
+    for (const key of keys) state.bodyFailures.add(key)
+  } finally {
+    for (const key of keys) state.bodyRequests.delete(key)
   }
 }
 
@@ -1699,6 +1797,9 @@ window.addEventListener('message', event => {
   }
   if (data.type === 'synapse:workspaces') {
     state.dshWorkspaces = Array.isArray(data.workspaces) ? data.workspaces.filter(workspace => typeof workspace?.id === 'string' && typeof workspace.title === 'string' && Array.isArray(workspace.sessionIds)) : []
+    // DSH owns the archive set; mirror it so an archived session stops drawing
+    // cards here too (issue #21 / #19).
+    state.archivedSessionIds = new Set(Array.isArray(data.archivedSessionIds) ? data.archivedSessionIds.filter(id => typeof id === 'string') : [])
     const current = currentDshWorkspace()
     if (current !== undefined && current.id !== state.selectedDshWorkspaceId) void openDshWorkspace(current.id).catch(setError)
     else if (state.selectedDshWorkspaceId !== null) void openDshWorkspace(state.selectedDshWorkspaceId).catch(setError)

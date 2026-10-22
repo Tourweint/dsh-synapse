@@ -31,6 +31,13 @@ window.__ModuleLoader__.load({
         { id: 'dsh-ungrouped', title: '未分组', path: null, sessionIds: sessions.ids.filter(id => !accounted.has(id)) },
       ]
     }
+    // DSH owns which Sessions are archived. The map mirrors that set so an
+    // archived Session stops drawing cards, and archives through the same
+    // Workspace action instead of keeping a second hidden list (#21 / #19).
+    const archivedSessionIds = ctx => {
+      const snapshot = ctx.workspaces.list.getSnapshot()
+      return Array.isArray(snapshot.archivedSessionIds) ? snapshot.archivedSessionIds.map(String) : []
+    }
 
     module.exports.inject = ['sessions', 'workspaces', 'uiWorkspace', 'uiConversation']
     module.exports.apply = ctx => {
@@ -225,7 +232,7 @@ window.__ModuleLoader__.load({
         publishLiveSessions()
         syncTheme()
         if (!overlay.hidden) {
-          send('synapse:workspaces', { workspaces: workspaceSnapshot(ctx) })
+          send('synapse:workspaces', { workspaces: workspaceSnapshot(ctx), archivedSessionIds: archivedSessionIds(ctx) })
           send('synapse:current-session', { session: currentSession(ctx) })
         }
       }
@@ -261,7 +268,7 @@ window.__ModuleLoader__.load({
         if (event.data.type === 'synapse:close') return close()
         if (event.data.type === 'synapse:map-ready') return showMapOverlay()
         if (event.data.type === 'synapse:request-current') {
-          send('synapse:workspaces', { workspaces: workspaceSnapshot(ctx) })
+          send('synapse:workspaces', { workspaces: workspaceSnapshot(ctx), archivedSessionIds: archivedSessionIds(ctx) })
           return send('synapse:current-session', { session: currentSession(ctx) })
         }
         if (event.data.type === 'synapse:open-session') {
@@ -305,6 +312,18 @@ window.__ModuleLoader__.load({
           // without closing the map; the sessions-list subscription re-sends
           // synapse:current-session so the map follows the new highlight.
           try { ctx.uiWorkspace.openSession(event.data.sessionId) } catch { send('synapse:bridge-error', { message: NO_SESSION }) }
+          return
+        }
+        if (event.data.type === 'synapse:archive-session') {
+          // One archive set only: archive through the Workspace action so DSH's
+          // sidebar and this map agree, then report the refreshed set.
+          const sessionId = event.data.sessionId
+          if (typeof sessionId !== 'string' || sessionId === '') return
+          if (typeof ctx.workspaces.archiveSession !== 'function') return send('synapse:bridge-error', { message: '当前 DSH 版本不支持归档接口' })
+          Promise.resolve()
+            .then(() => ctx.workspaces.archiveSession(sessionId))
+            .then(() => send('synapse:workspaces', { workspaces: workspaceSnapshot(ctx), archivedSessionIds: archivedSessionIds(ctx) }))
+            .catch(() => send('synapse:bridge-error', { message: 'DSH 归档失败，请稍后重试' }))
           return
         }
         if (event.data.type === 'synapse:fork-session') {

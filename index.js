@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { dirname } from 'node:path'
 
@@ -10,8 +10,16 @@ const MAX_TITLE_LENGTH = 120
 const MAX_NOTE_LENGTH = 4_000
 // Projected message text cap: longer replies truncate with a marker pointing
 // at the detail view instead of silently cutting mid-sentence.
-const MAX_PROJECTION_LENGTH = 8_000
+// Projected messages keep only a short preview: the body already lives in the
+// DSH session log, and a canvas full of copies is what made one workspace file
+// grow to megabytes (issue #42). Bodies are streamed back on demand by
+// `/synapse/api/threads/:id/full`.
+const EXCERPT_CHARS = 280
+// On-demand bodies are capped so a single enormous tool result cannot stall the
+// browser while its card is rendered.
+const MAX_BODY_CHARS = 200_000
 const PROJECTION_TRUNCATED_SUFFIX = '\n——…（详情查看全文）'
+const BODY_TRUNCATED_SUFFIX = '\n——…（正文过长，其余请在 DSH 中查看）'
 const TOPIC_COLORS = ['#0f766e', '#2563eb', '#be123c', '#7c3aed', '#b45309']
 // The harness writes `user/message` rows of its own (runtime snapshots, skill
 // catalogues). A canvas card must stand for a turn a person actually typed, so
@@ -53,6 +61,20 @@ export class WorkspaceStore {
     await this.ready
     const workspace = this.workspace(workspaceId)
     return structuredClone(workspace)
+  }
+
+  /**
+   * Read-only lookup used by on-demand body loading: returns the live thread
+   * (no clone) together with its workspace, or null when the id is unknown.
+   */
+  async locateThread(threadId) {
+    await this.ready
+    for (const workspace of this.state.workspaces) {
+      for (const thread of workspace.threads ?? []) {
+        if (thread.id === threadId) return { workspace, thread }
+      }
+    }
+    return null
   }
 
   async create(title) {
@@ -250,10 +272,15 @@ export class WorkspaceStore {
       const parsed = JSON.parse(await readFile(this.dataFile, 'utf8'))
       const { state, migrated } = normalizeState(parsed)
       this.state = state
-      if (migrated) await this.save()
+      if (migrated) {
+        // Dropping stored bodies is the one migration that cannot be undone by
+        // re-projection alone, so keep the pre-v5 file next to the new one.
+        if (Number(parsed?.version) < 5) await copyFile(this.dataFile, `${this.dataFile}.v4-backup`).catch(() => {})
+        await this.save()
+      }
     } catch (error) {
       if (error?.code !== 'ENOENT') throw new Error(`synapse: cannot read ${this.dataFile}: ${error.message}`)
-      this.state = { version: 4, hiddenSessionIds: [], workspaces: [] }
+      this.state = { version: 5, hiddenSessionIds: [], workspaces: [] }
       await this.save()
     }
   }
@@ -451,6 +478,8 @@ export class WorkspaceStore {
     const message = {
       id: randomUUID(),
       text: projection.text,
+      length: projection.length,
+      truncated: projection.truncated,
       kind: projection.kind,
       sourceSeq: event.seq,
       at,
@@ -484,21 +513,21 @@ export class WorkspaceStore {
     const process = target === undefined ? (thread.pendingProcess ??= []) : (target.process ??= [])
     const callId = String(event.type === 'tool/call' ? data.callId : data.message?.source?.callId ?? '')
     const entry = process.find(item => item.callId === callId)
+    // Process records keep only identity and status: tool arguments and results
+    // are the bulk of the old file (issue #42) and are reloaded on demand.
     if (event.type === 'tool/call') {
       if (entry === undefined) {
-        process.push({ callId, turn: data.turn, step: data.step, name: data.name, arguments: data.arguments, result: null, error: null })
+        process.push({ callId, turn: data.turn, step: data.step, name: data.name, status: 'pending' })
       } else {
         entry.name = data.name
-        entry.arguments = data.arguments
       }
     } else {
-      const outcome = contentText(data.message?.content)
-      const error = errorText(data.error)
+      const failed = errorText(data.error) !== null
       if (entry === undefined) {
-        process.push({ callId, turn: data.turn, step: data.step, name: '工具调用', arguments: null, result: outcome, error })
+        process.push({ callId, turn: data.turn, step: data.step, name: '工具调用', status: failed ? 'failed' : 'done' })
       } else {
-        entry.result = outcome
-        entry.error = error
+        entry.status = failed ? 'failed' : 'done'
+        if (typeof entry.name !== 'string' || entry.name === '') entry.name = '工具调用'
       }
     }
     thread.updatedAt = at
@@ -539,7 +568,7 @@ class NotFoundError extends Error {}
 function normalizeState(value) {
   let migrated = false
   let state
-  if ((value?.version === 2 || value?.version === 3 || value?.version === 4) && Array.isArray(value.workspaces)) {
+  if ((value?.version === 2 || value?.version === 3 || value?.version === 4 || value?.version === 5) && Array.isArray(value.workspaces)) {
     const hiddenSessionIds = Array.isArray(value.hiddenSessionIds) ? value.hiddenSessionIds.filter(item => typeof item === 'string') : []
     migrated = value.version < 3 || !Array.isArray(value.hiddenSessionIds)
     const workspaces = value.workspaces.map(workspace => ({
@@ -580,14 +609,52 @@ function normalizeState(value) {
     }
     migrated = true
   } else {
-    throw new Error('expected Synapse data version 1, 2, 3, or 4')
+    throw new Error('expected Synapse data version 1, 2, 3, 4, or 5')
   }
-  if (state.version !== 4) {
+  if (state.version < 4) {
     if (foldLegacyToolCards(state.workspaces)) migrated = true
     state.version = 4
     migrated = true
   }
+  // v5 drops message bodies and tool payloads from the workspace file: they are
+  // re-read from the DSH session log on demand. Existing bodies become previews.
+  if (state.version < 5) {
+    for (const workspace of state.workspaces) {
+      for (const thread of workspace.threads ?? []) {
+        if (Array.isArray(thread.messages)) thread.messages = thread.messages.map(toStoredMessage)
+        if (Array.isArray(thread.pendingProcess)) thread.pendingProcess = thread.pendingProcess.map(toStoredProcess)
+      }
+    }
+    state.version = 5
+    migrated = true
+  }
   return { state, migrated }
+}
+
+/** v4 message → v5 message: keep identity and a preview, drop the body. */
+function toStoredMessage(message) {
+  const normalized = typeof message?.text === 'string' ? message.text.trim() : ''
+  const text = normalized === '' ? '' : excerptOf(normalized)
+  const process = Array.isArray(message?.process) ? message.process.map(toStoredProcess) : message?.process
+  return {
+    ...message,
+    text,
+    length: normalized.length,
+    truncated: text.length < normalized.length,
+    ...(process === undefined ? {} : { process }),
+  }
+}
+
+/** v4 process record → v5 record: keep identity and status, drop the payload. */
+function toStoredProcess(entry) {
+  if (entry === null || typeof entry !== 'object') return entry
+  const { arguments: _arguments, result, error, ...rest } = entry
+  const status = error !== null && error !== undefined && error !== ''
+    ? 'failed'
+    : result === null || result === undefined
+      ? 'pending'
+      : 'done'
+  return { ...rest, status: typeof entry.status === 'string' ? entry.status : status }
 }
 
 /**
@@ -656,28 +723,86 @@ function requiredText(value, maxLength, field) {
   return text
 }
 
-function projectableEvent(event) {
-  switch (event.type) {
-    case 'user/message': {
-      if (isInjectedUserSource(event.data?.source)) return null
-      const text = contentText(event.data.content)
-      return isRuntimeContextText(text) ? null : noteProjection('user', text)
-    }
-    case 'assistant/message':
-      return noteProjection('assistant', contentText(event.data?.message?.content))
-    case 'todo/write':
-      return noteProjection('todo', Array.isArray(event.data?.todos) ? event.data.todos.map(todo => `[${todo.status}] ${todo.content}`).join('\n') : '')
+/** Event → canvas message kind, or null when the event is not a message. */
+function eventKind(event) {
+  switch (event?.type) {
+    case 'user/message': return 'user'
+    case 'assistant/message': return 'assistant'
+    case 'todo/write': return 'todo'
     case 'turn/end': {
       const reason = event.data?.reason
-      if (reason?.kind === 'error') return noteProjection('error', errorText(reason.error) ?? '本轮执行失败')
-      if (reason?.kind === 'cancelled' || reason?.kind === 'canceled' || reason?.kind === 'aborted') return noteProjection('error', '本轮已取消')
+      if (reason?.kind === 'error') return 'error'
+      if (reason?.kind === 'cancelled' || reason?.kind === 'canceled' || reason?.kind === 'aborted') return 'error'
       return null
     }
     default:
-      return /(?:error|failed|failure|cancel(?:led)?|abort)/i.test(event.type)
-        ? noteProjection('error', errorText(event.data?.error ?? event.data?.reason ?? event.data) ?? 'Harness 运行失败')
-        : null
+      return /(?:error|failed|failure|cancel(?:led)?|abort)/i.test(event?.type ?? '') ? 'error' : null
   }
+}
+
+/**
+ * Full body of one event. Shared by the projection (which stores a preview) and
+ * the on-demand loader (which returns the whole text), so both read the same
+ * fields instead of keeping two parsers in step.
+ */
+function eventBody(event) {
+  switch (event?.type) {
+    case 'user/message': return contentText(event.data?.content)
+    case 'assistant/message': return contentText(event.data?.message?.content)
+    case 'todo/write': return Array.isArray(event.data?.todos) ? event.data.todos.map(todo => `[${todo.status}] ${todo.content}`).join('\n') : ''
+    case 'turn/end': {
+      const reason = event.data?.reason
+      if (reason?.kind === 'error') return errorText(reason.error) ?? '本轮执行失败'
+      return '本轮已取消'
+    }
+    default:
+      return eventKind(event) === 'error' ? errorText(event.data?.error ?? event.data?.reason ?? event.data) ?? 'Harness 运行失败' : ''
+  }
+}
+
+function projectableEvent(event) {
+  const kind = eventKind(event)
+  if (kind === null) return null
+  const text = eventBody(event)
+  if (kind === 'user' && (isInjectedUserSource(event.data?.source) || isRuntimeContextText(text))) return null
+  return noteProjection(kind, text)
+}
+
+/**
+ * Full bodies for the requested stored messages, assembled from one session's
+ * event log. Exported so the on-demand loader is testable without a Host.
+ * `seqs === null` returns every projected message of the thread.
+ */
+export function bodiesFromEvents(thread, events, seqs) {
+  const wanted = seqs === null ? null : new Set(seqs)
+  const messages = {}
+  const eventsBySeq = new Map(events.map(event => [event?.seq, event]))
+  const calls = new Map()
+  for (const event of events) {
+    if (event?.type !== 'tool/call' && event?.type !== 'tool/result') continue
+    const callId = String(event.type === 'tool/call' ? event.data?.callId : event.data?.message?.source?.callId ?? '')
+    if (callId === '') continue
+    const record = calls.get(callId) ?? {}
+    if (event.type === 'tool/call') {
+      record.arguments = typeof event.data?.arguments === 'string' ? event.data.arguments : null
+    } else {
+      record.result = contentText(event.data?.message?.content) || null
+      record.error = errorText(event.data?.error)
+    }
+    calls.set(callId, record)
+  }
+  for (const message of thread.messages ?? []) {
+    if (wanted !== null && !wanted.has(message.sourceSeq)) continue
+    const event = eventsBySeq.get(message.sourceSeq)
+    if (event === undefined) continue
+    const body = eventBody(event).trim()
+    const capped = body.length > MAX_BODY_CHARS ? `${body.slice(0, MAX_BODY_CHARS)}${BODY_TRUNCATED_SUFFIX}` : body
+    const process = Array.isArray(message.process)
+      ? message.process.map(entry => ({ ...entry, ...(calls.get(String(entry.callId)) ?? {}) }))
+      : []
+    messages[String(message.sourceSeq)] = { text: capped, truncated: capped.length < body.length, process }
+  }
+  return messages
 }
 
 function errorText(value) {
@@ -693,8 +818,14 @@ function errorText(value) {
 function noteProjection(kind, text) {
   const normalized = text.trim()
   if (normalized === '') return null
-  if (normalized.length <= MAX_PROJECTION_LENGTH) return { kind, text: normalized }
-  return { kind, text: `${normalized.slice(0, MAX_PROJECTION_LENGTH)}${PROJECTION_TRUNCATED_SUFFIX}` }
+  const excerpt = excerptOf(normalized)
+  return { kind, text: excerpt, length: normalized.length, truncated: excerpt.length < normalized.length }
+}
+
+/** Short preview kept in the workspace file, with an ellipsis when cut. */
+function excerptOf(text) {
+  if (text.length <= EXCERPT_CHARS) return text
+  return `${text.slice(0, EXCERPT_CHARS).trimEnd()}…`
 }
 
 function isRuntimeContextText(text) {
@@ -825,6 +956,27 @@ export function apply(ctx, config) {
     ctx.on('session/event', enqueueProjection)
     for (const session of ctx.sessions.list()) replaySession(session)
   }
+  // Bodies live in the session log, not in the workspace file (issue #42). The
+  // canvas pulls them for the cards it actually renders; the detail view pulls a
+  // whole thread at once. An archived or already-removed session cannot be
+  // re-read, so the caller is told instead of receiving silently empty text.
+  const threadBodies = async (threadId, seqs) => {
+    const located = await store.locateThread(threadId)
+    if (located === null) throw new NotFoundError('会话不存在')
+    const { thread } = located
+    const wanted = seqs === null ? null : new Set(seqs)
+    if (thread.dshSessionId === null) {
+      const messages = {}
+      for (const message of thread.messages ?? []) {
+        if (wanted !== null && !wanted.has(message.sourceSeq)) continue
+        messages[String(message.sourceSeq)] = { text: message.text, truncated: message.truncated === true, process: message.process ?? [], local: true }
+      }
+      return { messages }
+    }
+    const session = ctx.sessions.list().find(candidate => candidate.id === thread.dshSessionId)
+    if (session === undefined) return { messages: {}, unavailable: true }
+    return { messages: bodiesFromEvents(thread, session.snapshotEvents(), seqs) }
+  }
   // The DSH /api browser-trust fence does not cover /synapse routes, so this
   // handler checks the Host header itself: localhost is allowed by default and
   // additional authorities opt in through config.trustedHosts (mirrors the
@@ -850,6 +1002,14 @@ export function apply(ctx, config) {
       if (path === '/synapse/api/sessions/sync' && req.method === 'POST') { const body = await readJson(req); return sendJson(res, 200, { workspaces: await store.syncSessions(body.sessions, body.removedSessionIds) }) }
       const messages = /^\/synapse\/api\/threads\/([0-9a-f-]+)\/messages$/i.exec(path)
       if (messages !== null && req.method === 'POST') return sendJson(res, 201, { thread: await store.addMessage(messages[1], (await readJson(req)).text) })
+      const full = /^\/synapse\/api\/threads\/([0-9a-f-]+)\/full$/i.exec(path)
+      if (full !== null && req.method === 'GET') {
+        const raw = new URL(req.url ?? '/', 'http://dsh.local').searchParams.get('seqs')
+        const seqs = raw === null || raw.trim() === ''
+          ? null
+          : raw.split(',').map(value => Number.parseInt(value, 10)).filter(value => Number.isInteger(value) && value >= 0)
+        return sendJson(res, 200, await threadBodies(full[1], seqs))
+      }
       const thread = /^\/synapse\/api\/threads\/([0-9a-f-]+)$/i.exec(path)
       if (thread !== null && req.method === 'PATCH') return sendJson(res, 200, { thread: await store.updateThread(thread[1], await readJson(req)) })
       if (thread !== null && req.method === 'DELETE') return sendJson(res, 200, await store.removeThread(thread[1]))

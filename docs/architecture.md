@@ -78,9 +78,13 @@ Each user question becomes a conversation card. The following assistant messages
 
 Only a turn a person typed becomes a card. The harness also writes its own `user/message` rows — the runtime-context snapshot, the skill catalogue `<system-reminder>` — and those carry a structured `data.source.kind`; injected kinds (`skill-catalog`, plus the runtime snapshot's text marker) are not projected, so they neither occupy a card nor steal the answer from the real question. Existing projections are pruned the same way when the store loads.
 
-Projected card text is capped at 8000 characters. Longer messages receive a truncation marker in the card, while their complete content remains available from the conversation detail view.
+Projected messages keep only a preview (280 characters), not the body. The body already lives in the DSH session log, and a workspace file full of copies is what made one workspace reach several megabytes and stall the canvas (issue #42). The canvas asks the Host for the bodies of the cards it actually mounts (`GET /synapse/api/threads/:id/full`), and the detail view asks for a whole thread at once; when a session is archived or gone from DSH the previews stay and the card is marked unavailable instead of rendering blank.
+
+Projected card text is capped at 8000 characters on the detail fetch, while the preview stays short.
 
 Projection writes are coalesced during event bursts, and live updates reuse cached Markdown and patch the active card instead of rebuilding the complete canvas. Card coordinates remain visual metadata only and never determine conversation lineage.
+
+Archiving is owned by DSH. The map mirrors `archivedSessionIds` from the Workspace snapshot to stop drawing cards for archived sessions, and its own archive action calls the Workspace `archiveSession` so both sides share one archive set (issue #21 / #19).
 
 ## Tool process folding
 

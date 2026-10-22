@@ -3,7 +3,7 @@ import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { WorkspaceStore } from '../index.js'
+import { WorkspaceStore, bodiesFromEvents } from '../index.js'
 
 /**
  * Doubles the host `Session` surface the store reads. v0.1.7 dropped the
@@ -28,7 +28,7 @@ test('persists a workspace, a DSH-linked thread, and a message', async () => {
   assert.equal(saved.title, '调研 DSH 插件')
   assert.equal(saved.threads[0].dshSessionId, 'session-1')
   assert.equal(saved.threads[0].messages[0].text, '确定使用已有 Web Server')
-  assert.match(await readFile(dataFile, 'utf8'), /"version": ?4/)
+  assert.match(await readFile(dataFile, 'utf8'), /"version": ?5/)
 })
 
 test('projects committed DSH events once, folds tool process into the assistant card, and keeps fork lineage', async () => {
@@ -58,8 +58,9 @@ test('projects committed DSH events once, folds tool process into the assistant 
   assert.equal(parentThread.messages[1].kind, 'assistant')
   assert.equal(parentThread.messages[1].process.length, 1)
   assert.equal(parentThread.messages[1].process[0].name, 'bash')
-  assert.equal(parentThread.messages[1].process[0].result, 'ok')
-  assert.equal(parentThread.messages[1].process[0].error, null)
+  // v5 keeps only the status; the tool payload is reloaded on demand.
+  assert.equal(parentThread.messages[1].process[0].status, 'done')
+  assert.equal(parentThread.messages[1].process[0].arguments, undefined)
   assert.equal(childThread.parentId, parentThread.id)
 })
 
@@ -82,8 +83,9 @@ test('projects a batch of session events in a single write', async () => {
   assert.equal(thread.messages.length, 2)
   assert.equal(thread.messages[0].text, '批量问题')
   assert.equal(thread.messages[1].process.length, 1)
-  assert.equal(thread.messages[1].process[0].result, 'ok')
-  assert.match(await readFile(join(directory, 'state.json'), 'utf8'), /"version": ?4/)
+  assert.equal(thread.messages[1].process[0].status, 'done')
+  assert.equal(thread.messages[1].process[0].result, undefined)
+  assert.match(await readFile(join(directory, 'state.json'), 'utf8'), /"version": ?5/)
 })
 
 test('retains a tool failure and exposes a failed turn without assistant text', async () => {
@@ -106,7 +108,7 @@ test('retains a tool failure and exposes a failed turn without assistant text', 
   assert.equal(failure.kind, 'error')
   assert.equal(failure.text, 'QuotaExceeded: INSUFFICIENT_BALANCE: 余额不足')
   assert.equal(failure.process.length, 1)
-  assert.equal(failure.process[0].error, 'QuotaExceeded: INSUFFICIENT_BALANCE: 余额不足')
+  assert.equal(failure.process[0].status, 'failed')
   assert.equal(graph.threads[0].pendingProcess.length, 0)
 })
 
@@ -139,11 +141,13 @@ test('migrates v3 tool cards into the assistant process records', async () => {
   assert.equal(thread.messages.length, 2)
   assert.equal(thread.messages[1].process.length, 2)
   assert.equal(thread.messages[1].process[0].name, 'read')
-  assert.equal(thread.messages[1].process[0].arguments, '{"file_path":"a.js"}')
-  assert.equal(thread.messages[1].process[0].result, 'file content')
+  // v5 migration drops the folded payload but keeps the pairing outcome.
+  assert.equal(thread.messages[1].process[0].status, 'done')
+  assert.equal(thread.messages[1].process[0].arguments, undefined)
+  assert.equal(thread.messages[1].process[0].result, undefined)
   assert.equal(thread.messages[1].process[1].name, 'bash')
-  assert.equal(thread.messages[1].process[1].result, null)
-  assert.match(await readFile(dataFile, 'utf8'), /"version": ?4/)
+  assert.equal(thread.messages[1].process[1].status, 'pending')
+  assert.match(await readFile(dataFile, 'utf8'), /"version": ?5/)
 })
 
 test('does not persist the DSH runtime context as a user conversation turn', async () => {
@@ -306,11 +310,11 @@ test('archived canvas nodes stay hidden during a later DSH session sync', async 
   assert.equal((await store.list()).length, 0)
 })
 
-test('does not rewrite an up-to-date v4 file on load', async () => {
+test('does not rewrite an up-to-date v5 file on load', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-idempotent-'))
   const dataFile = join(directory, 'state.json')
   const state = {
-    version: 4,
+    version: 5,
     hiddenSessionIds: [],
     workspaces: [{
       id: 'w-1', kind: 'dsh', cwd: 'C:\\work\\x', title: 'x',
@@ -319,7 +323,7 @@ test('does not rewrite an up-to-date v4 file on load', async () => {
         id: 't-1', title: 's', parentId: null, dshSessionId: 's-1', dshSessionTitle: null,
         color: '#0f766e', position: { x: 86, y: 82 }, sourceSeedLength: null,
         createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
-        messages: [{ id: 'm-1', kind: 'assistant', text: 'hi', sourceSeq: 1, at: '2026-01-01T00:00:00.000Z', process: [] }],
+        messages: [{ id: 'm-1', kind: 'assistant', text: 'hi', length: 2, truncated: false, sourceSeq: 1, at: '2026-01-01T00:00:00.000Z', process: [] }],
       }],
     }],
   }
@@ -351,8 +355,8 @@ test('coalesces deferred projection saves into one write', async () => {
   assert.equal(parsed.workspaces[0].threads[0].messages.length, 2)
 })
 
-test('truncates over-long projections with a detail-view marker', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-truncate-'))
+test('stores only a preview of a long message and keeps its length', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-excerpt-'))
   const store = new WorkspaceStore(join(directory, 'state.json'))
   const session = hostSession({ id: 's1', header: { cwd: 'C:\\work\\x' }, inheritedEventCount: 0 })
   await store.projectEvents(session, [
@@ -363,6 +367,41 @@ test('truncates over-long projections with a detail-view marker', async () => {
   const [workspace] = await store.list()
   const graph = await store.get(workspace.id)
   const assistant = graph.threads[0].messages.find(message => message.kind === 'assistant')
-  assert.equal(assistant.text.length, 8_000 + '\n——…（详情查看全文）'.length)
-  assert.ok(assistant.text.endsWith('——…（详情查看全文）'))
+  // The body stays in the DSH session log; only a preview is persisted (#42).
+  assert.equal(assistant.length, 9_000)
+  assert.equal(assistant.truncated, true)
+  assert.ok(assistant.text.length <= 281)
+  assert.ok(assistant.text.endsWith('…'))
+  assert.ok(Buffer.byteLength(JSON.stringify(assistant), 'utf8') < 600)
+})
+
+test('reloads message bodies from the session log on demand', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-bodies-'))
+  const store = new WorkspaceStore(join(directory, 'state.json'))
+  const session = hostSession({
+    id: 'session-bodies', header: { cwd: 'C:\\work\\bodies' }, inheritedEventCount: 0,
+    events: [
+      { type: 'user/message', seq: 1, time: 1, data: { content: [{ type: 'text', text: '看看构建日志' }] } },
+      { type: 'assistant/message', seq: 2, time: 2, data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: `长回答 ${'z'.repeat(4_000)}` }] } } },
+      { type: 'tool/call', seq: 3, time: 3, data: { turn: 1, step: 1, callId: 'c1', name: 'pwsh', arguments: '{"cmd":"pnpm build"}' } },
+      { type: 'tool/result', seq: 4, time: 4, data: { turn: 1, step: 1, message: { source: { kind: 'tool', callId: 'c1' }, content: [{ type: 'text', text: 'BUILD OK' }] } } },
+    ],
+  })
+  await store.projectSession(session)
+  const [workspace] = await store.list()
+  const graph = await store.get(workspace.id)
+  const thread = graph.threads[0]
+
+  // The stored copy is a preview; the loader returns the whole body plus the
+  // tool payload that the workspace file no longer keeps.
+  assert.ok(thread.messages[1].truncated)
+  const everything = bodiesFromEvents(thread, session.events, null)
+  assert.equal(everything['2'].text.startsWith('长回答'), true)
+  assert.equal(everything['2'].text.length, 4_000 + '长回答 '.length)
+  assert.equal(everything['1'].text, '看看构建日志')
+  assert.equal(everything['2'].process[0].arguments, '{"cmd":"pnpm build"}')
+  assert.equal(everything['2'].process[0].result, 'BUILD OK')
+
+  const subset = bodiesFromEvents(thread, session.events, [1])
+  assert.deepEqual(Object.keys(subset), ['1'])
 })

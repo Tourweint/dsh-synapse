@@ -73,7 +73,7 @@ corepack pnpm dsh web
 ## 与 DSH 的边界
 
 - DSH session log 保存真实会话内容；Synapse 只投影已提交的事件。
-- Synapse 的画布布局数据保存在 `$DSH_HOME/synapse/`，删除它不会删除 DSH 会话。
+- Synapse 只保存画布布局和每轮对话的短预览，消息正文始终从 DSH 会话记录按需读取；`$DSH_HOME/synapse/` 删除后不会丢会话，只会丢布局。
 - 插件不修改 prompt、模型请求、工具 schema、provider 路由或可复用 KV-cache 前缀。
 - 内置 patch 由 profile 的 bundle 列表引入，桌面 App（`desktop`）与命令行（`web`）都适用。
 
