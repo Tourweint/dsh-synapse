@@ -1116,16 +1116,35 @@ function threadMessage(thread, message) {
   return `<article class="message message-${message.kind}${message.pending ? ' message-pending' : ''}${collapsible ? ' message-collapsible' : ''}${expanded ? ' expanded' : ''}" data-message-seq="${Number.isInteger(message.sourceSeq) ? message.sourceSeq : ''}"><header>${avatar}<span class="message-role">${label}</span><time>${formatTime(message.at)}</time>${branch}${fold}</header><div class="message-body">${body}</div></article>`
 }
 
+/**
+ * Stored process entries carry a `status` (`pending` / `done` / `failed`);
+ * records folded in from a v3-era message still carry `error` / `result`. Read
+ * both shapes, otherwise a finished tool renders as a failure only because the
+ * newer shape has no `error` key at all (`undefined !== null`).
+ */
+function processState(entry) {
+  if (entry.status === 'failed') return 'failed'
+  if (entry.status === 'pending') return 'pending'
+  if (entry.status === 'done') return 'done'
+  if (typeof entry.error === 'string') return entry.error === '' ? (entry.result === null || entry.result === undefined ? 'pending' : 'done') : 'failed'
+  if (entry.error !== null && entry.error !== undefined) return 'failed'
+  return entry.result === null || entry.result === undefined ? 'pending' : 'done'
+}
+
 function processRecords(process, messageId) {
   const key = `${messageId}:process`
   const expanded = state.expandedMessageIds.has(key)
   const entries = process.map((entry, index) => {
     const entryKey = `${key}:${index}`
     const entryExpanded = state.expandedMessageIds.has(entryKey)
-    const status = entry.error !== null ? '失败' : entry.result === null ? '等待结果' : '完成'
-    const argumentsHtml = entry.arguments === null || entry.arguments === '' ? '' : `<pre class="process-args">${escapeHtml(entry.arguments)}</pre>`
-    const outcomeHtml = entry.error !== null ? `<pre class="process-error">${escapeHtml(entry.error)}</pre>` : entry.result === null ? '' : `<pre class="process-result">${escapeHtml(entry.result)}</pre>`
-    return `<div class="process-entry${entryExpanded ? ' expanded' : ''}"><button class="process-entry-fold" data-action="toggle-message" data-message="${escapeHtml(entryKey)}"><span class="process-entry-name">${escapeHtml(entry.name)}</span><span class="process-status${entry.error !== null ? ' process-status-error' : entry.result === null ? ' process-status-pending' : ' process-status-done'}">${status}</span></button>${entryExpanded ? `<div class="process-entry-body">${argumentsHtml}${outcomeHtml}</div>` : ''}</div>`
+    const state_ = processState(entry)
+    const status = state_ === 'failed' ? '失败' : state_ === 'pending' ? '等待结果' : '完成'
+    const statusClass = state_ === 'failed' ? ' process-status-error' : state_ === 'pending' ? ' process-status-pending' : ' process-status-done'
+    const argumentsHtml = typeof entry.arguments === 'string' && entry.arguments !== '' ? `<pre class="process-args">${escapeHtml(entry.arguments)}</pre>` : ''
+    const outcomeHtml = state_ === 'failed' && typeof entry.error === 'string' && entry.error !== ''
+      ? `<pre class="process-error">${escapeHtml(entry.error)}</pre>`
+      : typeof entry.result === 'string' && entry.result !== '' ? `<pre class="process-result">${escapeHtml(entry.result)}</pre>` : ''
+    return `<div class="process-entry${entryExpanded ? ' expanded' : ''}"><button class="process-entry-fold" data-action="toggle-message" data-message="${escapeHtml(entryKey)}"><span class="process-entry-name">${escapeHtml(entry.name)}</span><span class="process-status${statusClass}">${status}</span></button>${entryExpanded ? `<div class="process-entry-body">${argumentsHtml}${outcomeHtml}</div>` : ''}</div>`
   }).join('')
   return `<section class="process-records${expanded ? ' expanded' : ''}"><button class="process-records-fold" data-action="toggle-message" data-message="${escapeHtml(key)}"><span>${expanded ? '收起过程记录' : '过程记录'}</span><span class="process-count">${process.length}</span></button>${expanded ? entries : ''}</section>`
 }
@@ -1157,13 +1176,15 @@ function inspectorProcessEntries(messages) {
       continue
     }
     if (message.kind === 'tool') {
-      entries.push({ name: processSummary(message.text), arguments: message.text, result: null, error: null })
+      entries.push({ name: processSummary(message.text), arguments: message.text, status: 'pending' })
       continue
     }
     if (message.kind === 'tool-result') {
       const previous = entries.at(-1)
-      if (previous !== undefined && previous.result === null && previous.error === null) previous.result = message.text
-      else entries.push({ name: '工具结果', arguments: null, result: message.text, error: null })
+      if (previous !== undefined && processState(previous) === 'pending') {
+        previous.status = 'done'
+        previous.result = message.text
+      } else entries.push({ name: '工具结果', arguments: null, status: 'done', result: message.text })
     }
   }
   return entries

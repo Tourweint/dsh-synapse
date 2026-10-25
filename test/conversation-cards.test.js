@@ -371,3 +371,46 @@ test('cyclic collapsed roots stay visible and count unique descendants', async (
   assert.equal(graph.descendantCounts.get('a'), 1)
   assert.equal(graph.descendantCounts.get('b'), 1)
 })
+
+async function loadProcessRecords() {
+  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const start = source.indexOf('function processState')
+  const end = source.indexOf('function messagesForCard')
+  const context = {
+    globalThis: {},
+    state: { expandedMessageIds: new Set(['m:process']) },
+    escapeHtml: value => String(value).replace(/[&<>"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character]),
+  }
+  vm.createContext(context)
+  vm.runInContext(`${source.slice(start, end)};globalThis.processRecords = processRecords`, context)
+  return context.globalThis.processRecords
+}
+
+test('renders a stored process entry by its status instead of failing every tool', async () => {
+  const processRecords = await loadProcessRecords()
+
+  const html = processRecords([
+    { name: 'pws', status: 'done' },
+    { name: 'read', status: 'pending' },
+    { name: 'edit', status: 'failed' },
+  ], 'm')
+
+  assert.match(html, /pws<\/span><span class="process-status process-status-done">完成/)
+  assert.match(html, /read<\/span><span class="process-status process-status-pending">等待结果/)
+  assert.match(html, /edit<\/span><span class="process-status process-status-error">失败/)
+  assert.doesNotMatch(html, /undefined/)
+})
+
+test('still reads a v3-era process entry that only carries error and result', async () => {
+  const processRecords = await loadProcessRecords()
+
+  const html = processRecords([
+    { name: 'a', arguments: 'x', result: 'ok', error: null },
+    { name: 'b', result: null, error: 'boom' },
+    { name: 'c', result: null, error: null },
+  ], 'm')
+
+  assert.match(html, /a<\/span><span class="process-status process-status-done">完成/)
+  assert.match(html, /b<\/span><span class="process-status process-status-error">失败/)
+  assert.match(html, /c<\/span><span class="process-status process-status-pending">等待结果/)
+})
