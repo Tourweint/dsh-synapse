@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { WorkspaceStore, bodiesFromEvents } from '../index.js'
+import { zstdCompressSync } from 'node:zlib'
+import { SessionLogReader, WorkspaceStore, bodiesFromEvents } from '../index.js'
 
 /**
  * Doubles the host `Session` surface the store reads. v0.1.7 dropped the
@@ -404,4 +405,37 @@ test('reloads message bodies from the session log on demand', async () => {
 
   const subset = bodiesFromEvents(thread, session.events, [1])
   assert.deepEqual(Object.keys(subset), ['1'])
+})
+
+test('reads a closed session log from disk so its bodies stay available', { skip: typeof zstdCompressSync !== 'function' && 'zstd compression unavailable' }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-session-log-'))
+  const workspaceDirectory = join(directory, '--C-work--')
+  const sessionId = 'session-closed'
+  const sessionDirectory = join(workspaceDirectory, sessionId)
+  await mkdir(sessionDirectory, { recursive: true })
+  // DSH appends one zstd frame per flush, so a log is a run of frames.
+  const frame = events => zstdCompressSync(Buffer.from(events.map(event => JSON.stringify(event)).join('\n') + '\n', 'utf8'))
+  const log = Buffer.concat([
+    frame([{ type: 'session', version: 4, id: sessionId }]),
+    frame([
+      { type: 'user/message', seq: 1, time: 1, data: { content: [{ type: 'text', text: '老问题' }] } },
+      { type: 'assistant/message', seq: 2, time: 2, data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: '老回答' }] } } },
+    ]),
+  ])
+  await writeFile(join(sessionDirectory, 'session.v4.jsonl.zstd'), log)
+
+  const reader = new SessionLogReader(directory)
+  const events = await reader.events(sessionId)
+  // Only sequenced events are returned; the header line that opens the log is skipped.
+  assert.deepEqual(events.map(event => event.type), ['user/message', 'assistant/message'])
+  assert.equal(await reader.events('session-missing'), null)
+
+  // Second read is served from the mtime cache and stays correct.
+  const cached = await reader.events(sessionId)
+  assert.equal(cached.length, 2)
+
+  const thread = { messages: [{ sourceSeq: 1, process: [] }, { sourceSeq: 2, process: [] }] }
+  const bodies = bodiesFromEvents(thread, events, null)
+  assert.equal(bodies['1'].text, '老问题')
+  assert.equal(bodies['2'].text, '老回答')
 })

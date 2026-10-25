@@ -1,6 +1,7 @@
-import { copyFile, mkdir, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
+import { zstdDecompressSync } from 'node:zlib'
 
 export const name = 'synapse'
 export const inject = ['webServer', 'sessions']
@@ -805,6 +806,101 @@ export function bodiesFromEvents(thread, events, seqs) {
   return messages
 }
 
+// ---------------------------------------------------------------------------
+// Session logs on disk
+//
+// `ctx.sessions` only exposes sessions this process currently holds, which is
+// one or two out of a workspace's history. Everything else is read from the DSH
+// session log: a run of concatenated zstd frames holding JSONL events.
+// ---------------------------------------------------------------------------
+
+const SESSION_LOG_MAGIC = Buffer.from([0x28, 0xb5, 0x2f, 0xfd])
+const SESSION_LOG_PATTERN = /^session(?:\.[\w-]+)*\.jsonl\.zstd$/
+
+/** Decode the concatenated zstd frames of one session log into JSONL text. */
+export function decodeSessionLog(buffer) {
+  if (typeof zstdDecompressSync !== 'function') return null
+  const offsets = []
+  let index = buffer.indexOf(SESSION_LOG_MAGIC, 0)
+  while (index !== -1) {
+    offsets.push(index)
+    index = buffer.indexOf(SESSION_LOG_MAGIC, index + 4)
+  }
+  if (offsets.length === 0) return null
+  const parts = []
+  for (let i = 0; i < offsets.length; i += 1) {
+    const end = i + 1 < offsets.length ? offsets[i + 1] : buffer.length
+    try {
+      parts.push(zstdDecompressSync(buffer.subarray(offsets[i], end)))
+    } catch {
+      // A log that is being appended to can end mid-frame; decode what is whole.
+      break
+    }
+  }
+  if (parts.length === 0) return null
+  return Buffer.concat(parts).toString('utf8')
+}
+
+/** Reads session events from `$DSH_HOME/sessions`, caching by file mtime. */
+export class SessionLogReader {
+  constructor(directory) {
+    this.directory = directory
+    this.cache = new Map()
+  }
+
+  /** Events of one session, or null when its log is missing or unreadable. */
+  async events(sessionId) {
+    if (typeof this.directory !== 'string' || this.directory === '' || typeof sessionId !== 'string' || sessionId === '') return null
+    const file = await this.findLog(sessionId)
+    if (file === null) {
+      this.cache.delete(sessionId)
+      return null
+    }
+    const info = await stat(file).catch(() => null)
+    if (info === null) return null
+    const cached = this.cache.get(sessionId)
+    if (cached !== undefined && cached.mtimeMs === info.mtimeMs && cached.size === info.size) return cached.events
+    const text = decodeSessionLog(await readFile(file))
+    if (text === null) return null
+    const events = []
+    for (const line of text.split('\n')) {
+      if (line.trim() === '') continue
+      try {
+        const event = JSON.parse(line)
+        if (typeof event?.seq === 'number') events.push(event)
+      } catch {
+        // Trailing partial line while the session is still being written.
+      }
+    }
+    // Keep a few decoded logs; one screenful of cards touches few threads.
+    if (this.cache.size >= 4) this.cache.delete(this.cache.keys().next().value)
+    this.cache.set(sessionId, { mtimeMs: info.mtimeMs, size: info.size, events })
+    return events
+  }
+
+  async findLog(sessionId) {
+    let workspaces
+    try {
+      workspaces = await readdir(this.directory, { withFileTypes: true })
+    } catch {
+      return null
+    }
+    for (const workspace of workspaces) {
+      if (!workspace.isDirectory()) continue
+      const sessionDirectory = join(this.directory, workspace.name, sessionId)
+      let files
+      try {
+        files = await readdir(sessionDirectory)
+      } catch {
+        continue
+      }
+      const log = files.find(name => SESSION_LOG_PATTERN.test(name))
+      if (log !== undefined) return join(sessionDirectory, log)
+    }
+    return null
+  }
+}
+
 function errorText(value) {
   if (typeof value === 'string') return value.trim() || null
   if (value === null || value === undefined || typeof value !== 'object') return null
@@ -915,6 +1011,12 @@ function page() {
 /** Mount Synapse routes on the existing DSH Web Server. */
 export function apply(ctx, config) {
   const store = new WorkspaceStore(config?.dataFile)
+  // A profile can point the plugin at a different home; by default the session
+  // logs sit beside the workspace file ($DSH_HOME/sessions).
+  const sessionsDirectory = typeof config?.sessionsDir === 'string' && config.sessionsDir !== ''
+    ? config.sessionsDir
+    : join(dirname(dirname(config?.dataFile ?? '')), 'sessions')
+  const sessionLog = new SessionLogReader(sessionsDirectory)
   const autoProjection = config?.autoProjection !== false
   const projectionWorkspaceTitle = typeof config?.projectionWorkspaceTitle === 'string' && config.projectionWorkspaceTitle.trim() !== ''
     ? config.projectionWorkspaceTitle.trim().slice(0, MAX_TITLE_LENGTH)
@@ -974,8 +1076,11 @@ export function apply(ctx, config) {
       return { messages }
     }
     const session = ctx.sessions.list().find(candidate => candidate.id === thread.dshSessionId)
-    if (session === undefined) return { messages: {}, unavailable: true }
-    return { messages: bodiesFromEvents(thread, session.snapshotEvents(), seqs) }
+    if (session !== undefined) return { messages: bodiesFromEvents(thread, session.snapshotEvents(), seqs) }
+    // Closed session: read its log from disk, which is where the body lives.
+    const events = await sessionLog.events(thread.dshSessionId)
+    if (events === null) return { messages: {}, unavailable: true }
+    return { messages: bodiesFromEvents(thread, events, seqs) }
   }
   // The DSH /api browser-trust fence does not cover /synapse routes, so this
   // handler checks the Host header itself: localhost is allowed by default and
