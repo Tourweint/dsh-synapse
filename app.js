@@ -268,6 +268,24 @@ function openNewSession() {
 }
 
 async function archiveThread(thread) {
+  // A DSH-backed thread is archived in DSH itself, so the sidebar and this map
+  // share one archive set (issue #21 / #19). Keeping a second local delete is
+  // what made the map claim "archived" while DSH still listed the session.
+  if (thread.dshSessionId !== null) {
+    if (!window.confirm(`在 DSH 中归档「${thread.title}」及其分支？DSH 侧会话也会被归档。`)) return
+    try {
+      await dshRpc('synapse:archive-session', { sessionId: thread.dshSessionId })
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '归档失败')
+      return
+    }
+    state.archivedSessionIds.add(thread.dshSessionId)
+    state.activeId = state.activeId === thread.id ? (state.workspace?.threads.find(item => item.id !== thread.id)?.id ?? null) : state.activeId
+    if (state.inspectorCardId !== null && state.canvasCardsById?.get(state.inspectorCardId)?.dshThreadId === thread.id) state.inspectorCardId = null
+    render()
+    await refreshSummaries()
+    return
+  }
   if (!window.confirm(`归档画布中的「${thread.title}」及其分支？DSH 原会话会保留，可在 DSH 内继续查看。`)) return
   await api(`/synapse/api/threads/${thread.id}`, { method: 'DELETE' })
   state.historyBySession.delete(thread.dshSessionId)
@@ -303,8 +321,6 @@ async function archiveThread(thread) {
   } else {
     state.activeId = null
   }
-  // Archive in DSH as well, so both sides agree on one archive set (#21 / #19).
-  if (thread.dshSessionId !== null) post('synapse:archive-session', { sessionId: thread.dshSessionId })
   await refreshSummaries()
 }
 
@@ -1872,6 +1888,7 @@ window.addEventListener('message', event => {
     }
   }
   if (data.type === 'synapse:forked-session' || data.type === 'synapse:created-session' || data.type === 'synapse:message-sent') settleRpc(data.requestId, data.session ?? data)
+  if (data.type === 'synapse:archived-session') settleRpc(data.requestId, data)
   if (data.type === 'synapse:bridge-error') { settleRpc(data.requestId, undefined, new Error(data.message)); if (data.requestId === undefined) setError(data.message) }
 })
 

@@ -136,7 +136,7 @@ async function loadBridge(options = {}) {
   // deep equality rejects; every recorded value crosses back through
   // `structuredClone` so assertions compare this realm's objects.
   const record = (list, value) => { list.push(structuredClone(value)) }
-  const calls = { retain: [], released: [], prompts: [], opened: [], created: [], forked: [], fetches: [], subscriptions: 0 }
+  const calls = { retain: [], released: [], prompts: [], opened: [], created: [], forked: [], archived: [], fetches: [], subscriptions: 0 }
   const posted = []
   const listListeners = new Set()
   const workspaceListeners = new Set()
@@ -221,11 +221,12 @@ async function loadBridge(options = {}) {
     },
   }
 
+  const archivedSessionIds = new Set(options.archivedSessionIds ?? [])
   const workspaces = {
     list: {
       getSnapshot: () => ({
         items: options.workspaces ?? [],
-        archivedSessionIds: [],
+        archivedSessionIds: [...archivedSessionIds],
         pinnedSessionIds: [],
         state: 'idle',
         phase: 'ready',
@@ -236,6 +237,13 @@ async function loadBridge(options = {}) {
         workspaceListeners.add(listener)
         return () => workspaceListeners.delete(listener)
       },
+    },
+    // Mirrors the Workspace Controller's archive action: it is the only archive
+    // set, so the double refuses nothing and records the call.
+    archiveSession: async sessionId => {
+      archivedSessionIds.add(sessionId)
+      record(calls.archived, sessionId)
+      return { ok: true }
     },
   }
 
@@ -564,6 +572,20 @@ test('forks through the Session Controller and reports the child', async () => {
 
   assert.deepEqual(bridge.calls.forked, [{ sessionId: 'session-parent', atSeq: 12, increaseTitle: true }])
   assert.deepEqual(bridge.postedOf('synapse:forked-session')[0].session, { id: 'session-fork', title: 'DSH 分支' })
+})
+
+test('archives through the Workspace action and acknowledges the map', async () => {
+  const bridge = await loadBridge({ sessions: [sessionRow('session-archive')] })
+
+  bridge.message({ type: 'synapse:archive-session', requestId: 'r-archive', sessionId: 'session-archive' })
+  await new Promise(resolve => setTimeout(resolve, 0))
+  await new Promise(resolve => setTimeout(resolve, 0))
+
+  // One archive set: the map asks DSH, DSH archives, the map is told so it can
+  // hide the card instead of diverging.
+  assert.deepEqual(bridge.calls.archived, ['session-archive'])
+  assert.equal(bridge.postedOf('synapse:archived-session').at(-1).requestId, 'r-archive')
+  assert.deepEqual(bridge.postedOf('synapse:workspaces').at(-1).archivedSessionIds, ['session-archive'])
 })
 
 test('releases every subscription and removes the shell when disposed', async () => {

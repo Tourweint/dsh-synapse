@@ -316,14 +316,23 @@ window.__ModuleLoader__.load({
         }
         if (event.data.type === 'synapse:archive-session') {
           // One archive set only: archive through the Workspace action so DSH's
-          // sidebar and this map agree, then report the refreshed set.
+          // sidebar and this map agree, then acknowledge the request so the map
+          // can hide the card instead of silently diverging (#21 / #19).
           const sessionId = event.data.sessionId
+          const requestId = event.data.requestId
           if (typeof sessionId !== 'string' || sessionId === '') return
-          if (typeof ctx.workspaces.archiveSession !== 'function') return send('synapse:bridge-error', { message: '当前 DSH 版本不支持归档接口' })
+          if (typeof ctx.workspaces.archiveSession !== 'function') {
+            return send('synapse:bridge-error', { requestId, message: '当前 DSH 版本不支持归档接口' })
+          }
           Promise.resolve()
             .then(() => ctx.workspaces.archiveSession(sessionId))
-            .then(() => send('synapse:workspaces', { workspaces: workspaceSnapshot(ctx), archivedSessionIds: archivedSessionIds(ctx) }))
-            .catch(() => send('synapse:bridge-error', { message: 'DSH 归档失败，请稍后重试' }))
+            .then(() => {
+              send('synapse:archived-session', { requestId, sessionId })
+              send('synapse:workspaces', { workspaces: workspaceSnapshot(ctx), archivedSessionIds: archivedSessionIds(ctx) })
+            })
+            .catch(error => {
+              send('synapse:bridge-error', { requestId, message: `DSH 归档失败：${error instanceof Error ? error.message : String(error)}` })
+            })
           return
         }
         if (event.data.type === 'synapse:fork-session') {
