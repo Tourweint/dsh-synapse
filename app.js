@@ -1268,7 +1268,7 @@ function render() {
   const canvasControls = state.mode === 'canvas' && (threads.length > 0 || state.draft?.kind === 'new') ? `<div class="canvas-controls"><button data-action="layout" title="整理节点" aria-label="整理节点"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg>整理</button><button data-action="focus-active" title="定位到当前会话" aria-label="定位到当前会话"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.5v2.6M8 11.9v2.6M1.5 8h2.6M11.9 8h2.6"/></svg>定位</button><button data-action="zoom-out" aria-label="缩小" title="缩小"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3.5 8h9"/></svg></button><span>${Math.round(state.zoom * 100)}%</span><button data-action="zoom-in" aria-label="放大" title="放大"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg></button></div>` : ''
   const detailAvailable = currentThread() !== null
   const canvasTabs = `<nav class="canvas-tabs" aria-label="会话地图视图"><button class="${state.mode === 'canvas' ? 'active' : ''}" data-action="show-canvas">地图</button><button class="${state.mode === 'thread' ? 'active' : ''}" data-action="show-thread" data-thread="${state.activeId ?? ''}" ${detailAvailable ? '' : 'disabled'}>详情</button></nav>`
-  app.innerHTML = `<main class="synapse-shell ${state.sidebarCollapsed ? 'sidebar-collapsed' : ''}"><aside class="sidebar"><div class="sidebar-brand-row"><div class="brand" aria-label="Synapse"><svg class="brand-mark" aria-hidden="true" viewBox="0 0 32 32" fill="none"><path d="M9 10.5 16 7l7 3.5M9 10.5v8L16 22m0-15v15m7-11.5v8L16 22"/><circle cx="9" cy="10" r="2.5"/><circle cx="23" cy="10" r="2.5"/><circle cx="16" cy="23" r="2.5"/></svg><strong>Synapse</strong></div><button class="sidebar-toggle" type="button" data-action="toggle-sidebar" aria-label="${state.sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}" title="${state.sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2.25"/><path d="M6 2v12"/></svg></button></div><button class="new-workspace" type="button" data-action="create-session" ${state.draft !== null ? 'disabled' : ''}><svg class="new-session-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75v6.5M4.75 8h6.5"/></svg><span>新会话</span></button><label class="workspace-label"><span>工作区</span><span class="workspace-select"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 4.75h3l1.2 1.5h6.8v5.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1Z"/></svg><select data-action="select-workspace" aria-label="选择工作区" ${state.draft !== null ? 'disabled' : ''}>${choices.map(item => `<option value="${item.id}" title="${escapeHtml(item.path ?? item.title)}" ${item.id === selectedWorkspaceId ? 'selected' : ''}>${escapeHtml(item.title)}</option>`).join('')}</select></span></label><div class="sidebar-heading"><span>会话</span></div><nav class="thread-tree">${threads.map(thread => `<button class="tree-row ${thread.id === state.activeId ? 'active' : ''}" data-action="select-thread" data-thread="${thread.id}" style="--thread-color:#374151"><span class="tree-dot"></span><span>${escapeHtml(threadListTitle(thread))}</span>${thread.parentId === null ? '' : '<i>分支</i>'}</button>`).join('') || '<p class="tree-empty">暂未同步会话</p>'}</nav></aside><header class="topbar">${canvasControls}</header><section class="main-stage">${state.error ? `<div class="status-message" role="alert"><span>${escapeHtml(state.error)}</span><button data-action="dismiss-error" aria-label="关闭" title="关闭">×</button></div>` : ''}${canvasTabs}${view}${selectionFollowupButton()}</section></main>`
+  morphInto(app, `<main class="synapse-shell ${state.sidebarCollapsed ? 'sidebar-collapsed' : ''}"><aside class="sidebar"><div class="sidebar-brand-row"><div class="brand" aria-label="Synapse"><svg class="brand-mark" aria-hidden="true" viewBox="0 0 32 32" fill="none"><path d="M9 10.5 16 7l7 3.5M9 10.5v8L16 22m0-15v15m7-11.5v8L16 22"/><circle cx="9" cy="10" r="2.5"/><circle cx="23" cy="10" r="2.5"/><circle cx="16" cy="23" r="2.5"/></svg><strong>Synapse</strong></div><button class="sidebar-toggle" type="button" data-action="toggle-sidebar" aria-label="${state.sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}" title="${state.sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2.25"/><path d="M6 2v12"/></svg></button></div><button class="new-workspace" type="button" data-action="create-session" ${state.draft !== null ? 'disabled' : ''}><svg class="new-session-icon" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75v6.5M4.75 8h6.5"/></svg><span>新会话</span></button><label class="workspace-label"><span>工作区</span><span class="workspace-select"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 4.75h3l1.2 1.5h6.8v5.5a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1Z"/></svg><select data-action="select-workspace" aria-label="选择工作区" ${state.draft !== null ? 'disabled' : ''}>${choices.map(item => `<option value="${item.id}" title="${escapeHtml(item.path ?? item.title)}" ${item.id === selectedWorkspaceId ? 'selected' : ''}>${escapeHtml(item.title)}</option>`).join('')}</select></span></label><div class="sidebar-heading"><span>会话</span></div><nav class="thread-tree">${threads.map(thread => `<button class="tree-row ${thread.id === state.activeId ? 'active' : ''}" data-action="select-thread" data-thread="${thread.id}" style="--thread-color:#374151"><span class="tree-dot"></span><span>${escapeHtml(threadListTitle(thread))}</span>${thread.parentId === null ? '' : '<i>分支</i>'}</button>`).join('') || '<p class="tree-empty">暂未同步会话</p>'}</nav></aside><header class="topbar">${canvasControls}</header><section class="main-stage">${state.error ? `<div class="status-message" role="alert"><span>${escapeHtml(state.error)}</span><button data-action="dismiss-error" aria-label="关闭" title="关闭">×</button></div>` : ''}${canvasTabs}${view}${selectionFollowupButton()}</section></main>`)
   installDragging()
   cacheCardConnectors()
   // The initial camera from renderCanvas is inset (viewport not laid out yet);
@@ -1416,7 +1416,100 @@ function applyCanvasTransform() {
   if (content instanceof HTMLElement) content.style.transform = `translate(${state.canvasCamera.x}px, ${state.canvasCamera.y}px) scale(${state.zoom})`
 }
 
+// --- DOM morphing ---------------------------------------------------------
+// The canvas re-renders on every projection tick and on every streamed chunk.
+// Assigning `app.innerHTML` destroys the exact node the user is pressing, and a
+// click is only dispatched when mousedown and mouseup share a target, so a
+// rebuild in between silently swallows the click (W3C uievents #141). Morph the
+// new markup into the live tree instead: matching nodes are patched in place and
+// whatever sits under the pointer stays alive.
+
+const MORPH_KEY_ATTRIBUTES = ['data-morph-key', 'data-card-id', 'data-thread', 'id']
+
+function morphKeyOf(node) {
+  if (!(node instanceof Element)) return null
+  for (const attribute of MORPH_KEY_ATTRIBUTES) {
+    const value = node.getAttribute(attribute)
+    if (value !== null && value !== '') return `${node.tagName}|${attribute}|${value}`
+  }
+  return null
+}
+
+/** An element that owns the caret keeps its children untouched. */
+function morphHoldsCaret(node) {
+  if (!(node instanceof Element)) return false
+  if (node === document.activeElement) return true
+  const selection = typeof window.getSelection === 'function' ? window.getSelection() : null
+  if (selection === null || selection.rangeCount === 0) return false
+  const anchor = selection.anchorNode
+  return anchor !== null && node.contains(anchor)
+}
+
+function morphNode(from, to) {
+  if (from.nodeType !== to.nodeType) return replaceMorphed(from, to)
+  if (from.nodeType === Node.TEXT_NODE || from.nodeType === Node.COMMENT_NODE) {
+    if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue
+    return from
+  }
+  if (!(from instanceof Element) || !(to instanceof Element) || from.tagName !== to.tagName) {
+    return replaceMorphed(from, to)
+  }
+  if (morphHoldsCaret(from)) return from
+  for (const attribute of [...from.attributes]) {
+    if (!to.hasAttribute(attribute.name)) from.removeAttribute(attribute.name)
+  }
+  for (const attribute of [...to.attributes]) {
+    if (from.getAttribute(attribute.name) !== attribute.value) from.setAttribute(attribute.name, attribute.value)
+  }
+  morphChildren(from, to)
+  return from
+}
+
+/** Swap one node for a copy of another and hand back the node now in the tree. */
+function replaceMorphed(from, to) {
+  const next = to.cloneNode(true)
+  from.replaceWith(next)
+  return next
+}
+
+function morphChildren(from, to) {
+  const keyed = new Map()
+  for (const child of [...from.childNodes]) {
+    const key = morphKeyOf(child)
+    if (key !== null && !keyed.has(key)) keyed.set(key, child)
+  }
+  const matched = new Set()
+  let cursor = from.firstChild
+  for (const next of [...to.childNodes]) {
+    const key = morphKeyOf(next)
+    let match = key === null ? null : keyed.get(key) ?? null
+    if (match === null && cursor !== null && morphKeyOf(cursor) === null) match = cursor
+    if (match === null) {
+      const inserted = next.cloneNode(true)
+      from.insertBefore(inserted, cursor)
+      matched.add(inserted)
+      continue
+    }
+    if (match !== cursor) from.insertBefore(match, cursor)
+    matched.add(morphNode(match, next))
+    cursor = match.nextSibling
+  }
+  for (const child of [...from.childNodes]) {
+    if (!matched.has(child)) from.removeChild(child)
+  }
+}
+
+/** Patch `container`'s children to match `html` without discarding live nodes. */
+function morphInto(container, html) {
+  const template = document.createElement('template')
+  template.innerHTML = html
+  morphChildren(container, template.content)
+}
+
 function bindDragHandle(handle) {
+  // Cards now survive a render, so bind each drag handle once.
+  if (handle.dataset.dragBound === '1') return
+  handle.dataset.dragBound = '1'
   handle.addEventListener('pointerdown', event => {
     const cardId = event.currentTarget.dataset.dragCard
     const card = event.currentTarget.closest('.thread-card')
@@ -1925,9 +2018,11 @@ function applyLiveReplyToCard(sessionId) {
   const answer = card.querySelector('.thread-answer')
   if (!(answer instanceof HTMLElement)) return
   const text = live.text
-  answer.innerHTML = text.trim() === ''
+  // Morph instead of replacing the subtree: the answer keeps its nodes, so a
+  // pointer that went down inside it still resolves to a click on release.
+  morphInto(answer, text.trim() === ''
     ? '<p class="thread-answer-pending">正在回复</p>'
-    : `${renderMarkdown(text)}<p class="thread-answer-pending">正在回复</p>`
+    : `${renderMarkdown(text)}<p class="thread-answer-pending">正在回复</p>`)
 }
 function scheduleLiveRender() {
   if (liveRenderTimer !== 0 || !canReplaceView()) return
