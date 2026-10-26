@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import vm from 'node:vm'
+import { readAppSource } from './source.js'
 
 /**
  * `morph-render.test.js` only checks that the morph functions exist. That let a
@@ -93,7 +94,7 @@ class Element {
  * @returns `morphChildren`, running in a context wired to the DOM double.
  */
 async function loadMorph() {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const start = source.indexOf('const MORPH_KEY_ATTRIBUTES')
   const end = source.indexOf('function bindCardDrag')
   assert.ok(start !== -1 && end > start, 'the morph block is present in app.js')

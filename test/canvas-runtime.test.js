@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import vm from 'node:vm'
+import { pickApp, readAppSource } from './source.js'
 
 test('clamps the canvas zoom and chases the target over several frames', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const snippet = source.slice(source.indexOf('/* ── Zoom animation'), source.indexOf('function focusActiveCard'))
   let clock = 0
   let queued = null
@@ -64,7 +65,7 @@ test('clamps the canvas zoom and chases the target over several frames', async (
 })
 
 test('uses one camera transform without browser scroll coordinates', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
 
   assert.match(source, /canvasCamera: \{ x: 0, y: 0 \}/)
   assert.match(source, /translate\(\$\{state\.canvasCamera\.x\}px, \$\{state\.canvasCamera\.y\}px\) scale\(\$\{state\.zoom\}\)/)
@@ -84,7 +85,7 @@ test('reuses the live map iframe and retries initialization only after iframe lo
 })
 
 test('keeps the canvas viewport across dialog/map toggles and recenters on real session switches', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const mapOpened = source.slice(source.indexOf("if (data.type === 'synapse:map-opened')"), source.indexOf("if (data.type === 'synapse:workspaces')"))
   const currentSession = source.slice(source.indexOf("if (data.type === 'synapse:current-session')"), source.indexOf("if (data.type === 'synapse:live-reply'"))
 
@@ -97,7 +98,7 @@ test('keeps the canvas viewport across dialog/map toggles and recenters on real 
 })
 
 test('keeps the wheel zooming the map and only yields it to the draft textarea', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const wheel = source.slice(source.indexOf("app.addEventListener('wheel'"), source.indexOf("app.addEventListener('click'"))
 
   // Cards have no scrollable text any more, so a pointer resting on one must
@@ -109,7 +110,7 @@ test('keeps the wheel zooming the map and only yields it to the draft textarea',
 
 test('clips the card text instead of giving the card a scroll area', async () => {
   const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
-  const card = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const card = await readAppSource()
 
   // No per-card scrollbar: both card kinds clamp their text, and the inspector
   // is the only scroll container anywhere near a card.
@@ -122,7 +123,7 @@ test('clips the card text instead of giving the card a scroll area', async () =>
 })
 
 test('splits a turn into a question card and an answer card', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
   const build = source.slice(source.indexOf('function turnCardNode'), source.indexOf('function conversationGraphView'))
   const card = source.slice(source.indexOf('function conversationCard'), source.indexOf('function draftActions'))
@@ -148,7 +149,7 @@ test('splits a turn into a question card and an answer card', async () => {
 })
 
 test('keeps the question→answer link vertical by role, not by coordinates', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const path = source.slice(source.indexOf('function connectorPath('), source.indexOf('function elementHeight'))
 
   // Deciding from x coordinates meant a 3px drag flipped the pair link back to
@@ -162,7 +163,7 @@ test('keeps the question→answer link vertical by role, not by coordinates', as
 })
 
 test('draws the pair link as a short drop even when one card is nudged', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const snippet = source.slice(source.indexOf('function connectorPath('), source.indexOf('function elementHeight'))
   const context = { globalThis: {}, CARD_WIDTH: 252 }
   vm.createContext(context)
@@ -185,7 +186,7 @@ test('draws the pair link as a short drop even when one card is nudged', async (
 })
 
 test('offers an in-map picker for the question/answer arrangement', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
   const start = source.indexOf("button.dataset.action === 'set-question-position'")
   const action = source.slice(start, source.indexOf('} catch (error)', start))
@@ -221,21 +222,21 @@ test('activating a session from the map syncs DSH without closing the map', asyn
 })
 
 test('selecting a session in the sidebar syncs the DSH current session', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const selectThread = source.slice(source.indexOf("button.dataset.action === 'select-thread'"), source.indexOf("button.dataset.action === 'show-thread'"))
 
   assert.match(selectThread, /synapse:activate-session/)
 })
 
 test('clicking a session card syncs the DSH current session', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const cardClick = source.slice(source.indexOf('if (!(button instanceof HTMLElement)) {'), source.indexOf("if (button.dataset.action === 'close')"))
 
   assert.match(cardClick, /post\('synapse:activate-session', \{ sessionId: thread\.dshSessionId \}\)/)
 })
 
 test('switching sessions from a map card keeps the current camera position', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const cardClick = source.slice(source.indexOf('if (!(button instanceof HTMLElement)) {'), source.indexOf("if (button.dataset.action === 'close')"))
   const currentSession = source.slice(source.indexOf("if (data.type === 'synapse:current-session')"), source.indexOf("if (data.type === 'synapse:live-reply'"))
 
@@ -246,7 +247,7 @@ test('switching sessions from a map card keeps the current camera position', asy
 })
 
 test('keeps conversation highlighting separate from the exact selected card', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
   const tokens = await readFile(new URL('../tokens.css', import.meta.url), 'utf8')
   const connectors = source.slice(source.indexOf('function canvasConnectors'), source.indexOf('function conversationCard(card, graph)'))
@@ -270,10 +271,10 @@ test('keeps conversation highlighting separate from the exact selected card', as
 })
 
 test('opens the clicked card in a tool-aware detail inspector', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
   const cardClick = source.slice(source.indexOf('if (!(button instanceof HTMLElement)) {'), source.indexOf("if (button.dataset.action === 'close')"))
-  const inspector = source.slice(source.indexOf('function messagesForCard'), source.indexOf('function renderThread'))
+  const inspector = await pickApp('inspector')
 
   assert.match(source, /inspectorCardId: null/)
   assert.match(source, /function openCardInspector/)
@@ -307,7 +308,7 @@ test('opens the clicked card in a tool-aware detail inspector', async () => {
 })
 
 test('resizes the inspector by dragging its left edge within bounds', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
   const resizer = source.slice(source.indexOf('function installInspectorResizer'), source.indexOf("window.addEventListener('resize'"))
 
@@ -331,7 +332,7 @@ test('resizes the inspector by dragging its left edge within bounds', async () =
 })
 
 test('switching the workspace in the map syncs DSH to its first session', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   // The picker is a custom listbox now; both the trigger and its options call
   // `switchWorkspace`, which owns the DSH hand-off.
   const select = source.slice(source.indexOf('async function switchWorkspace'), source.indexOf("app.addEventListener('input'"))
@@ -341,7 +342,7 @@ test('switching the workspace in the map syncs DSH to its first session', async 
 })
 
 test('renders markdown tables and allows higher canvas zoom', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const markdown = source.slice(source.indexOf('function markdownBlock'), source.indexOf('function overlapsCard'))
 
   assert.match(markdown, /<table><thead>/)
@@ -353,9 +354,10 @@ test('renders markdown tables and allows higher canvas zoom', async () => {
 })
 
 test('renders the refactored detail view with role-based messages', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
-  const thread = source.slice(source.indexOf('function renderThread'), source.indexOf('function render()'))
-  const message = source.slice(source.indexOf('function threadMessage'), source.indexOf('function processRecords'))
+  const source = await readAppSource()
+  // The transcript lives in one module now: assert on the module, not a slice.
+  const thread = await pickApp('detail')
+  const message = thread
 
   assert.match(thread, /detail-scroll/)
   assert.match(thread, /detail-flow/)
@@ -378,7 +380,7 @@ test('renders the refactored detail view with role-based messages', async () => 
 })
 
 test('persists dragged card positions and can focus the current session', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
 
   assert.match(source, /localStorage\.setItem\(CARD_POSITIONS_KEY/)
   assert.match(source, /function focusActiveCard\(\)/)
@@ -386,7 +388,7 @@ test('persists dragged card positions and can focus the current session', async 
 })
 
 test('switching workspaces syncs DSH to the most recently updated session', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const select = source.slice(source.indexOf('async function switchWorkspace'), source.indexOf("app.addEventListener('input'"))
 
   assert.match(select, /updatedAt/)
@@ -395,7 +397,7 @@ test('switching workspaces syncs DSH to the most recently updated session', asyn
 
 test('mirrors DSH theme changes into the map', async () => {
   const clientSource = await readFile(new URL('../client.js', import.meta.url), 'utf8')
-  const appSource = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const appSource = await readAppSource()
 
   assert.match(clientSource, /data-ds-dark-theme/)
   assert.match(clientSource, /synapse:theme/)
@@ -404,7 +406,7 @@ test('mirrors DSH theme changes into the map', async () => {
 })
 
 test('leaves text selections inside cards intact', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const cardClick = source.slice(source.indexOf('if (!(button instanceof HTMLElement)) {'), source.indexOf("if (button.dataset.action === 'close')"))
 
   assert.match(cardClick, /event\.detail > 1/)
@@ -413,7 +415,7 @@ test('leaves text selections inside cards intact', async () => {
 })
 
 test('opens a prefilled follow-up draft from selected answer text', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const selection = source.slice(source.indexOf('function selectionFollowupTarget'), source.indexOf("app.addEventListener('pointerdown', event => {"))
   const click = source.slice(source.indexOf("if (button.dataset.action === 'follow-selection')"), source.indexOf("if (button.dataset.action === 'close')"))
 
@@ -429,7 +431,7 @@ test('opens a prefilled follow-up draft from selected answer text', async () => 
 })
 
 test('renders editable quick phrases in follow-up and branch drafts', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
 
   assert.match(source, /DEFAULT_QUICK_PHRASES = \['展开说明', '举例', '通俗易懂', '对比解释'\]/)
@@ -444,7 +446,7 @@ test('renders editable quick phrases in follow-up and branch drafts', async () =
 })
 
 test('caches markdown rendering and patches the live card without a full render', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const live = source.slice(source.indexOf('function scheduleLiveCardUpdate'), source.indexOf('async function pollProjection'))
 
   assert.match(source, /const markdownCache = new Map\(\)/)
@@ -455,7 +457,7 @@ test('caches markdown rendering and patches the live card without a full render'
 })
 
 test('renders a follow-up plus on final cards and fold plus branch controls on non-final cards', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const card = source.slice(source.indexOf('function conversationCard'), source.indexOf('function draftActions'))
 
   assert.match(card, /class="graph-continue-button"/)
@@ -490,7 +492,7 @@ test('positions the latest plus at the connector and the branch icon below the f
 })
 
 test('persists graph collapse choices and renders connectors from visible cards only', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const canvas = source.slice(source.indexOf('function renderCanvas'), source.indexOf('function isProcessMessage'))
   const toggle = source.slice(source.indexOf("button.dataset.action === 'toggle-card-children'"), source.indexOf("button.dataset.action === 'open-continue'"))
 
@@ -504,7 +506,7 @@ test('persists graph collapse choices and renders connectors from visible cards 
 })
 
 test('identifies when an anchored draft has no visible parent card', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const placement = source.slice(source.indexOf('function draftPlacement'), source.indexOf('function draftCard'))
 
   assert.match(placement, /draft\.anchorId === undefined/)
@@ -513,7 +515,7 @@ test('identifies when an anchored draft has no visible parent card', async () =>
 })
 
 test('prevents collapse from hiding drafts or the active conversation and restores focus', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const toggle = source.slice(source.indexOf("button.dataset.action === 'toggle-card-children'"), source.indexOf("button.dataset.action === 'open-continue'"))
 
   assert.match(toggle, /const visibleCards = conversationGraphView\(allCards, nextCollapsed\)\.cards/)
@@ -525,7 +527,7 @@ test('prevents collapse from hiding drafts or the active conversation and restor
 })
 
 test('reveals hidden ancestor paths when a conversation becomes current', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const reveal = source.slice(source.indexOf('function revealConversationThread'), source.indexOf('function canvasConnectors'))
   const current = source.slice(source.indexOf("data.type === 'synapse:current-session'"), source.indexOf("data.type === 'synapse:live-reply'"))
 
@@ -535,7 +537,7 @@ test('reveals hidden ancestor paths when a conversation becomes current', async 
 })
 
 test('prunes persisted collapsed state when a conversation is archived', async () => {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+  const source = await readAppSource()
   const archive = source.slice(source.indexOf('async function archiveThread'), source.indexOf('function openContinue'))
 
   assert.match(archive, /state\.collapsedCardIds/)

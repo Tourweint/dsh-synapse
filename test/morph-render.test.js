@@ -4,8 +4,9 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { readAppSource } from './source.js'
 
-const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
+const source = await readAppSource()
 
 test('patches renders into the live tree instead of replacing the page', () => {
   assert.match(source, /function morphInto\(container, html\)/)

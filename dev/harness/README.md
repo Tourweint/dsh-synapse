@@ -1,12 +1,12 @@
 # 点击级冒烟测试
 
-`pnpm test` 覆盖 Host 半部和 `app.js` 的片段，但**从不渲染画布**：`test/morph-render.test.js` 只是用正则核对源码，所以 DOM 补丁层的回归（控件被合并、渲染被冻结、视图切换丢卡片）在那边永远是全绿。
+`pnpm test` 覆盖 Host 半部和 `app/*.js` 的片段，但**从不渲染画布**：`test/morph-render.test.js` 只是用正则核对源码，所以 DOM 补丁层的回归（控件被合并、渲染被冻结、视图切换丢卡片）在那边永远是全绿。
 
 这个脚本补上那一段：它会
 
 1. 用真实的 `index.js`（`apply()`）在一个真实 HTTP 服务器上启动 Host 半部；
 2. 用 `WorkspaceStore` 造一个工作区，写入几条消息，作为画布数据；
-3. 用 jsdom 加载真实的 `/synapse/` 页面（真实的 `app.js`、真实的 `/synapse/api/*`）；
+3. 用 jsdom 加载真实的 `/synapse/` 页面（真实的 `app/*.js`、真实的 `/synapse/api/*`）；
 4. **像人一样点击**：点卡片、点「新会话」再取消、进详情再返回画布、点整理；
 5. 每步核对 DOM，失败时以非 0 退出。
 

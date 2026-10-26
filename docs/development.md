@@ -36,7 +36,7 @@ corepack pnpm pack
 npm pack --dry-run --json
 ```
 
-The package has no generated build output. `build` runs `node --check` over `index.js`, `client.js`, and `app.js`.
+The package has no generated build output. `build` runs `node --check` over `index.js`, `client.js`, and every module in `app/` (see `scripts/check.mjs`).
 
 ## GitHub Actions
 

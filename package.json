@@ -13,7 +13,7 @@
   "files": [
     "index.js",
     "client.js",
-    "app.js",
+    "app",
     "deepseek-mark.svg",
     "tokens.css",
     "styles.css",
@@ -23,7 +23,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "node --check index.js && node --check client.js && node --check app.js",
+    "build": "node scripts/check.mjs",
     "prepare": "pnpm run build",
     "test": "node --test test/*.test.js"
   },

@@ -1,15 +1,13 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 import vm from 'node:vm'
 import test from 'node:test'
+import { pickApp } from './source.js'
 
 async function loadRenderer() {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
-  const start = source.indexOf('const escapeHtml')
-  const end = source.indexOf('function canvasConnectors')
+  const source = await pickApp('text', 'markdown')
   const context = { globalThis: {} }
   vm.createContext(context)
-  vm.runInContext(`${source.slice(start, end)};globalThis.renderMarkdown = renderMarkdown`, context)
+  vm.runInContext(`${source};globalThis.renderMarkdown = renderMarkdown`, context)
   return context.globalThis.renderMarkdown
 }
 

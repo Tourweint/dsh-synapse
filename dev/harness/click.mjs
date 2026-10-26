@@ -1,6 +1,6 @@
 // Click-level smoke test for the map page.
 //
-// `pnpm test` exercises the Host half and slices of app.js, but it never
+// `pnpm test` exercises the Host half and slices of app/*.js, but it never
 // renders the canvas: `test/morph-render.test.js` only matches the source text,
 // so a regression in the DOM patching (controls collapsing, renders freezing,
 // the view switch losing its cards) stays green there. This script closes that

@@ -3,7 +3,7 @@ import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { apply } from '../index.js'
+import { APP_SCRIPTS, apply } from '../index.js'
 
 /**
  * Drives the host half through the v0.1.7-rc.2 contracts it consumes: the
@@ -37,6 +37,7 @@ function hostSession(fields) {
  */
 function hostContext(options = {}) {
   const routes = []
+  const handlers = new Map()
   const listeners = new Map()
   const sessions = options.sessions ?? []
   const ctx = {
@@ -44,6 +45,7 @@ function hostContext(options = {}) {
     webServer: {
       register: route => {
         routes.push({ kind: route.kind, path: route.path })
+        handlers.set(route.path, route.handler)
         return () => {}
       },
     },
@@ -58,6 +60,13 @@ function hostContext(options = {}) {
     ctx,
     routes,
     sessions,
+    // Run one registered route the way the web server would, and hand back the
+    // body it wrote — the only way to see the page the iframe actually loads.
+    respond: async (path, request = {}) => {
+      let body = ''
+      await handlers.get(path)?.(request, { writeHead: () => {}, end: chunk => { body += chunk ?? '' } })
+      return body
+    },
     emit: async (type, ...args) => {
       for (const handler of listeners.get(type) ?? []) await handler(...args)
     },
@@ -86,15 +95,21 @@ test('mounts its own routes on the existing DSH Web Server', async () => {
 
   apply(host.ctx, { dataFile: join(directory, 'state.json') })
 
+  // The canvas UI is served as one script per module, in load order.
+  const appRoutes = APP_SCRIPTS.map(name => ({ kind: 'exact', path: `/synapse/app/${name}.js` }))
   assert.deepEqual(host.routes, [
     { kind: 'exact', path: '/synapse' },
     { kind: 'exact', path: '/synapse/' },
-    { kind: 'exact', path: '/synapse/app.js' },
+    ...appRoutes,
     { kind: 'exact', path: '/synapse/tokens.css' },
     { kind: 'exact', path: '/synapse/styles.css' },
     { kind: 'exact', path: '/synapse/deepseek-mark.svg' },
     { kind: 'prefix', path: '/synapse/api' },
   ])
+  // The page has to announce the same list, or a module silently never loads.
+  const page = await host.respond('/synapse/')
+  for (const name of APP_SCRIPTS) assert.match(page, new RegExp(`<script src="/synapse/app/${name}\\.js"></script>`))
+  assert.doesNotMatch(page, /\/synapse\/app\.js"/)
 })
 
 test('replays the sessions already live at mount through snapshotEvents()', async () => {

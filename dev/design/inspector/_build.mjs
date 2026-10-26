@@ -1,6 +1,6 @@
 // Generates the markdown fixture in these pages with the app's real renderer,
 // and derives b.html / c.html from a.html so the three stay structurally
-// identical. Run after changing `markdownBlock()` in app.js:
+// identical. Run after changing `markdownBlock()` in app/markdown.js:
 //
 //   node dev/design/inspector/_build.mjs
 import { readFile, writeFile } from 'node:fs/promises'
@@ -8,14 +8,13 @@ import { join } from 'node:path'
 import vm from 'node:vm'
 
 const here = import.meta.dirname
-const appSource = await readFile(join(here, '..', '..', '..', 'app.js'), 'utf8')
-const start = appSource.indexOf('const MARKDOWN_LINK')
-const end = appSource.indexOf('/** A card\'s height in the flow')
-const context = {
-  escapeHtml: value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character])),
-}
+const appRoot = join(here, '..', '..', '..', 'app')
+// text.js carries escapeHtml, markdown.js the renderer: both are DOM-free.
+const textSource = await readFile(join(appRoot, 'text.js'), 'utf8')
+const markdownSource = await readFile(join(appRoot, 'markdown.js'), 'utf8')
+const context = {}
 vm.createContext(context)
-vm.runInContext(`${appSource.slice(start, end)};globalThis.renderMarkdown = renderMarkdown`, context)
+vm.runInContext(`${textSource}\n${markdownSource};globalThis.renderMarkdown = renderMarkdown`, context)
 
 const SAMPLE = [
   '## 结论',

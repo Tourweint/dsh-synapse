@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import vm from 'node:vm'
+import { pickApp } from './source.js'
 
-// Geometry mirrored from app.js: one turn is a question card with its answer
+// Geometry mirrored from app/layout.js: one turn is a question card with its answer
 // card hanging 20px below it, in the same column.
 const CARD_WIDTH = 252
 const CARD_HEIGHT = 92
@@ -17,9 +17,7 @@ const questionsOf = cards => Array.from(cards).filter(card => card.role === 'que
 const answersOf = cards => Array.from(cards).filter(card => card.role === 'answer')
 
 async function loadConversationCards() {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
-  const start = source.indexOf('function overlapsCard')
-  const end = source.indexOf('function canvasConnectors')
+  const source = await pickApp('layout')
   const context = {
     globalThis: {},
     CARD_WIDTH: 252,
@@ -35,7 +33,7 @@ async function loadConversationCards() {
     state: { branchAnchors: new Map(), cardPositions: new Map(), liveReplies: new Map(), collapsedCardIds: new Set(), expandedCardIds: new Set(), questionPosition: 'above' },
   }
   vm.createContext(context)
-  vm.runInContext(`${source.slice(start, end)};globalThis.conversationCards = conversationCards;globalThis.conversationGraphView = conversationGraphView;globalThis.initialCanvasCamera = initialCanvasCamera`, context)
+  vm.runInContext(`${source};globalThis.conversationCards = conversationCards;globalThis.conversationGraphView = conversationGraphView;globalThis.initialCanvasCamera = initialCanvasCamera`, context)
   return { conversationCards: context.globalThis.conversationCards, conversationGraphView: context.globalThis.conversationGraphView, initialCanvasCamera: context.globalThis.initialCanvasCamera, state: context.state }
 }
 
@@ -465,16 +463,14 @@ test('cyclic collapsed roots stay visible and count unique descendants', async (
 })
 
 async function loadProcessRecords() {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
-  const start = source.indexOf('function processState')
-  const end = source.indexOf('function messagesForCard')
+  const source = await pickApp('process')
   const context = {
     globalThis: {},
     state: { expandedMessageIds: new Set(['m:process']), collapsedProcessIds: new Set() },
     escapeHtml: value => String(value).replace(/[&<>"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character]),
   }
   vm.createContext(context)
-  vm.runInContext(`${source.slice(start, end)};globalThis.processRecords = processRecords;globalThis.processEntries = processEntries;globalThis.state = state`, context)
+  vm.runInContext(`${source};globalThis.processRecords = processRecords;globalThis.processEntries = processEntries;globalThis.state = state`, context)
   return context.globalThis
 }
 

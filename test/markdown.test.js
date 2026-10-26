@@ -3,20 +3,16 @@
 // rendered as three literal dashes, and `>` rendered as a literal angle bracket,
 // because the parser only knew paragraphs, headings, lists, fences and tables.
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import vm from 'node:vm'
+import { pickApp } from './source.js'
 
 async function loadMarkdown() {
-  const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
-  const start = source.indexOf('const MARKDOWN_LINK')
-  const end = source.indexOf('/** A card\'s height in the flow')
-  const context = {
-    globalThis: {},
-    escapeHtml: value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character])),
-  }
+  // text.js carries escapeHtml, markdown.js everything else: no DOM, no state.
+  const source = await pickApp('text', 'markdown')
+  const context = { globalThis: {} }
   vm.createContext(context)
-  vm.runInContext(`${source.slice(start, end)};globalThis.renderMarkdown = renderMarkdown;globalThis.answerSummary = answerSummary;globalThis.answerPlainText = answerPlainText`, context)
+  vm.runInContext(`${source};globalThis.renderMarkdown = renderMarkdown;globalThis.answerSummary = answerSummary;globalThis.answerPlainText = answerPlainText`, context)
   return context.globalThis
 }
 

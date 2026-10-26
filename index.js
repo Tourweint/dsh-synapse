@@ -1055,8 +1055,15 @@ function sendFile(res, contentType, body) {
   res.end(body)
 }
 
+// The canvas UI is a set of classic scripts, not modules: they share one global
+// scope, so the order below is the dependency order (values first, behaviour
+// last). Splitting the file this way keeps every chapter readable and every
+// stack frame pointing at the file it came from, without a build step.
+export const APP_SCRIPTS = ['text', 'dom', 'core', 'data', 'markdown', 'layout', 'cards', 'process', 'detail', 'inspector', 'render', 'morph', 'canvas', 'events', 'live']
+
 function page() {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Synapse for DSH</title><link rel="stylesheet" href="/synapse/tokens.css"><link rel="stylesheet" href="/synapse/styles.css"></head><body><div id="app"></div><script src="/synapse/app.js"></script></body></html>`
+  const scripts = APP_SCRIPTS.map(name => `<script src="/synapse/app/${name}.js"></script>`).join('')
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Synapse for DSH</title><link rel="stylesheet" href="/synapse/tokens.css"><link rel="stylesheet" href="/synapse/styles.css"></head><body><div id="app"></div>${scripts}</body></html>`
 }
 
 /** Mount Synapse routes on the existing DSH Web Server. */
@@ -1179,7 +1186,16 @@ export function apply(ctx, config) {
   }
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse', handler: (_req, res) => { res.writeHead(302, { location: '/synapse/' }); res.end() } }), 'synapse: redirect')
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse/', handler: (_req, res) => { sendFile(res, 'text/html; charset=utf-8', page()) } }), 'synapse: page')
-  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse/app.js', handler: async (_req, res) => { sendFile(res, 'text/javascript; charset=utf-8', await readFile(new URL('./app.js', import.meta.url), 'utf8')) } }), 'synapse: app')
+  // One exact route per script: the list is fixed at startup, so there is no
+  // path to sanitise and no directory listing to leak.
+  for (const name of APP_SCRIPTS) {
+    ctx.effect(() => ctx.webServer.register({
+      kind: 'exact',
+      path: `/synapse/app/${name}.js`,
+      handler: async (_req, res) => { sendFile(res, 'text/javascript; charset=utf-8', await readFile(new URL(`./app/${name}.js`, import.meta.url), 'utf8')) },
+    }), `synapse: app ${name}`)
+  }
+
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse/tokens.css', handler: async (_req, res) => { sendFile(res, 'text/css; charset=utf-8', await readFile(new URL('./tokens.css', import.meta.url), 'utf8')) } }), 'synapse: tokens')
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse/styles.css', handler: async (_req, res) => { sendFile(res, 'text/css; charset=utf-8', await readFile(new URL('./styles.css', import.meta.url), 'utf8')) } }), 'synapse: styles')
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse/deepseek-mark.svg', handler: async (_req, res) => { sendFile(res, 'image/svg+xml', await readFile(new URL('./deepseek-mark.svg', import.meta.url), 'utf8')) } }), 'synapse: DeepSeek mark')

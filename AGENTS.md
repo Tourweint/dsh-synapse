@@ -9,10 +9,11 @@ DeepSeek Harness（DSH）的会话地图插件：零运行时依赖，无构建�
 ## 目录
 
 - [三块代码](#三块代码)
+- [画布 UI 的模块划分](#画布-ui-的模块划分)
 - [开发循环](#开发循环)
 - [在本机 App 里调试](#在本机-app-里调试)
 - [测试的四层与各自的盲区](#测试的四层与各自的盲区)
-- [`app.js` 的 morph 补丁层](#appjs-的-morph-补丁层三条硬约束)
+- [DOM 补丁层（`app/morph.js`）](#dom-补丁层appmorphjs三条硬约束)
 - [卡片：一个 turn = 两张卡](#卡片一个-turn--两张卡七条契约)
 - [详情页：一列对话](#详情页一列对话不是一叠卡片)
 - [Markdown 与代码块](#markdown-与代码块)
@@ -28,15 +29,39 @@ DeepSeek Harness（DSH）的会话地图插件：零运行时依赖，无构建�
 |---|---|---|
 | `index.js` | Host 半部：路由、投影、存储 | **重启 App** |
 | `client.js` | 浏览器桥：把画布注入 DSH 页面 | 刷新页面（还不行就重启 App） |
-| `app.js` | 画布 UI，跑在 `/synapse/` iframe 里 | 刷新页面 |
+| `app/*.js` | 画布 UI：15 个 classic script，跑在 `/synapse/` iframe 里 | 刷新页面 |
 
-**最容易浪费半小时的一条**：地图 iframe 只在 DSH 页面 mount 时创建一次，切「对话 / 会话地图」只是把它 `hidden` 掉再显示，**不会重新拉 `app.js` 和 CSS**。所以改完 `app.js` 必须整页 `Ctrl+R`，光点标签看不到任何变化。
+**最容易浪费半小时的一条**：地图 iframe 只在 DSH 页面 mount 时创建一次，切「对话 / 会话地图」只是把它 `hidden` 掉再显示，**不会重新拉 `app/*.js` 和 CSS**。所以改完必须整页 `Ctrl+R`，光点标签看不到任何变化。
+
+## 画布 UI 的模块划分
+
+`app/` 是**同一份全局作用域**按章节切开的，不是 ES 模块——没有 import/export，也没有打包步骤。顺序就是依赖顺序，唯一权威是 `index.js` 的 `APP_SCRIPTS`（页面 `<script>` 标签和路由都由它生成，测试也从那里取）。
+
+| 模块 | 内容 |
+|---|---|
+| `text.js` | `escapeHtml` / `clipText`，唯一的纯函数文件，无 DOM 无状态 |
+| `dom.js` | 挂载点 `#app` |
+| `core.js` | 常量、`state`、localStorage、`api/post/rpc` |
+| `data.js` | 工作区 / 线程 / 消息装载，以及开启一轮的动作 |
+| `markdown.js` | Markdown 解析 + 代码分词 |
+| `layout.js` | 卡片几何、自动布局、连线路径 |
+| `cards.js` | 卡片与草稿的 HTML、画布视口 |
+| `process.js` | 工具调用记录（折叠行与抽屉里的块） |
+| `detail.js` | 详情页转录 |
+| `inspector.js` | 右侧抽屉：开合、宽度、内容 |
+| `render.js` | `render()` 入口、按需拉正文、画布变换 |
+| `morph.js` | 原地 DOM 打补丁 |
+| `canvas.js` | 拖动、缩放、定位 |
+| `events.js` | 各类监听、选区追问、切换工作区 |
+| `live.js` | 桥消息、实时轮询、启动 |
+
+两条规则：①**新增模块只在 `APP_SCRIPTS` 里插一行**（位置即加载顺序，`test/source.js` 直接复用这份列表，不用改别处）；②顶层只允许声明，**唯一会立刻执行的代码在 `events.js` / `live.js` 末尾**——把立即执行的语句塞进靠前的文件，会在它依赖的常量还没初始化时炸掉。
 
 ## 开发循环
 
 ```powershell
 corepack pnpm install --frozen-lockfile   # 无依赖，只跑 prepare
-corepack pnpm run build                   # node --check index.js client.js app.js
+corepack pnpm run build                   # node scripts/check.mjs：index.js + client.js + app/*.js
 corepack pnpm test                        # node --test test/*.test.js
 cd dev/harness; npm install; npm test     # 真实渲染 + 真实点击（需 jsdom）
 ```
@@ -60,22 +85,22 @@ cd 'D:\Program File\DeepSeekHarness\resources\runtime\cli\bin'
 - `dsh plugin` 只是在 profile 目录转发 pnpm，`link:` 会写进 `package.json` 与 `pnpm-lock.yaml`。
 - 退回 npm 版：`.\dsh.cmd plugin --profile desktop add dsh-synapse@<version>`（`0.5.3` 及更早没有 morph，可作对照）。
 - `dsh --profile desktop` 不能直接 boot（提示 "managed exclusively by the Electron application"），`--dump-config` 同理不可用。
-- 想确认运行中的 App 到底提供的是哪份文件，直接问它：先 `Get-NetTCPConnection` 找到 `DeepSeek Harness` 的监听端口，再 `GET /synapse/app.js` 搜关键字。端口每次启动都会变。
+- 想确认运行中的 App 到底提供的是哪份文件，直接问它：先 `Get-NetTCPConnection` 找到 `DeepSeek Harness` 的监听端口，再 `GET /synapse/app/<模块>.js` 搜关键字。端口每次启动都会变。
 
 ## 测试的四层与各自的盲区
 
 | 层 | 位置 | 管什么 | 盲区 |
 |---|---|---|---|
 | Host 单测 | `test/workspace-store.test.js`、`test/plugin-apply.test.js` | 存储、投影、迁移、路由挂载 | 不碰浏览器 |
-| vm 切片 | `test/conversation-cards.test.js`、`test/message-projection.test.js` 等 | 从 `app.js` 切函数片段跑 | 不渲染、不点击 |
+| vm 切片 | `test/conversation-cards.test.js`、`test/message-projection.test.js` 等 | 把 `app/` 的某个模块整个 eval 进 vm 跑 | 不渲染、不点击 |
 | 源码契约 | `test/morph-render.test.js`、`test/canvas-runtime.test.js` | 用正则锁住关键写法 | **函数在 ≠ 点了有反应** |
 | 点击级 | `dev/harness/click.mjs` | 真实 Host + jsdom 真实点击 | 无布局，尺寸相关只验证不报错 |
 
 **改 UI 渲染 / 事件的一定要跑 `dev/harness`**：0.5.4 的 morph 回归让 101 个测试全绿而页面完全不可用。
 
-vm 切片的代价是它对切片边界敏感：新增函数要么落在切片区间内，要么测试加载时取不到它。改 `app.js` 的顶层顺序后，先跑一遍 `node --test`。
+vm 切片要显式列出模块（`pickApp('text', 'markdown')`），所以改模块边界时顺手看一眼谁在引用它：`test/source.js` 的 `APP_FILES` 直接取 `index.js` 的 `APP_SCRIPTS`，加模块不用改测试工具。
 
-## `app.js` 的 morph 补丁层：三条硬约束
+## DOM 补丁层（`app/morph.js`）：三条硬约束
 
 `morphInto()` 原地打补丁取代 `innerHTML` 整体重建，因此：
 
