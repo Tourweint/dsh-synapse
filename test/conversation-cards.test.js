@@ -470,16 +470,16 @@ async function loadProcessRecords() {
   const end = source.indexOf('function messagesForCard')
   const context = {
     globalThis: {},
-    state: { expandedMessageIds: new Set(['m:process']) },
+    state: { expandedMessageIds: new Set(['m:process']), collapsedProcessIds: new Set() },
     escapeHtml: value => String(value).replace(/[&<>"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character]),
   }
   vm.createContext(context)
-  vm.runInContext(`${source.slice(start, end)};globalThis.processRecords = processRecords`, context)
-  return context.globalThis.processRecords
+  vm.runInContext(`${source.slice(start, end)};globalThis.processRecords = processRecords;globalThis.processEntries = processEntries;globalThis.state = state`, context)
+  return context.globalThis
 }
 
 test('renders a stored process entry by its status instead of failing every tool', async () => {
-  const processRecords = await loadProcessRecords()
+  const { processRecords } = await loadProcessRecords()
 
   const html = processRecords([
     { name: 'pws', status: 'done' },
@@ -494,7 +494,7 @@ test('renders a stored process entry by its status instead of failing every tool
 })
 
 test('still reads a v3-era process entry that only carries error and result', async () => {
-  const processRecords = await loadProcessRecords()
+  const { processRecords } = await loadProcessRecords()
 
   const html = processRecords([
     { name: 'a', arguments: 'x', result: 'ok', error: null },
@@ -505,4 +505,47 @@ test('still reads a v3-era process entry that only carries error and result', as
   assert.match(html, /a<\/span><span class="process-status process-status-done">完成/)
   assert.match(html, /b<\/span><span class="process-status process-status-error">失败/)
   assert.match(html, /c<\/span><span class="process-status process-status-pending">等待结果/)
+})
+
+test('the drawer opens a tool row with its arguments and result on show', async () => {
+  const { processEntries } = await loadProcessRecords()
+
+  const html = processEntries([
+    { name: 'read_file', status: 'done', arguments: '{"path":"a"}', result: 'body' },
+  ], 'k', { openByDefault: true })
+
+  // No click, no expand state: a row the reader has not touched is open.
+  assert.match(html, /class="process-entry expanded"/)
+  assert.match(html, /data-action="toggle-process"/)
+  assert.match(html, /<p class="process-entry-label">参数<\/p><pre class="process-args">\{&quot;path&quot;:&quot;a&quot;\}<\/pre>/)
+  assert.match(html, /<p class="process-entry-label">结果<\/p><pre class="process-result">body<\/pre>/)
+})
+
+test('a drawer row the reader closed keeps its header and drops the payload', async () => {
+  const { processEntries, state } = await loadProcessRecords()
+  state.collapsedProcessIds.add('k:0')
+
+  const html = processEntries([{ name: 'read_file', status: 'done', arguments: 'a', result: 'b' }], 'k', { openByDefault: true })
+
+  assert.doesNotMatch(html, /process-entry-body/)
+  assert.doesNotMatch(html, / expanded"/)
+  assert.match(html, /read_file/)
+})
+
+test('a row with no payload says so instead of looking truncated', async () => {
+  const { processEntries } = await loadProcessRecords()
+
+  const html = processEntries([{ status: 'done' }], 'k', { openByDefault: true })
+
+  assert.match(html, /class="process-entry-name">工具调用<\/span>/)
+  assert.match(html, /<p class="process-entry-empty">暂无参数与结果<\/p>/)
+})
+
+test('the detail view keeps its tool rows folded until they are opened', async () => {
+  const { processEntries } = await loadProcessRecords()
+
+  const html = processEntries([{ name: 'bash', status: 'done', arguments: 'x' }], 'k')
+
+  assert.doesNotMatch(html, /process-entry-body/)
+  assert.match(html, /data-action="toggle-message"/)
 })

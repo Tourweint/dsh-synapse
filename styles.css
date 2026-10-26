@@ -367,10 +367,18 @@ button.primary:hover { border-color: var(--syn-accent-hover); background: var(--
    read, so it is on screen from the start. */
 .card-inspector-process { margin-top: 20px; border-top: 1px solid var(--syn-line-soft); padding-top: 2px; }
 .card-inspector-process .card-inspector-section { margin: 10px 0 2px; }
-.card-inspector-process .process-entry { margin-top: 2px; border: 0; border-radius: 6px; background: transparent; }
-.card-inspector-process .process-entry-fold { border-radius: 6px; padding: 5px 8px; font-size: 12px; }
+/* Each tool is a block, not a disclosure you have to go find: the header names
+   it and the payload follows in full. Nothing here is clipped or truncated —
+   long arguments and results wrap, and the drawer stays the only scroller. */
+.card-inspector-process .process-entry { margin-top: 0; border: 0; border-top: 1px solid var(--syn-line-soft); border-radius: 0; background: transparent; }
+.card-inspector-process .process-entry:last-child { padding-bottom: 2px; }
+.card-inspector-process .process-entry-fold { border-radius: 6px; padding: 7px 8px; font-size: 12px; }
 .card-inspector-process .process-entry-fold:hover { background: var(--syn-surface-2); }
-.card-inspector-process .process-entry-body { padding: 0 8px 6px; }
+.card-inspector-process .process-entry-name { overflow: visible; color: var(--syn-ink); font-family: "Cascadia Code", Consolas, "Courier New", monospace; font-size: 11.5px; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+.card-inspector-process .process-entry-body { display: grid; gap: 3px; padding: 0 8px 10px; }
+.card-inspector-process .process-args, .card-inspector-process .process-result, .card-inspector-process .process-error { overflow-wrap: anywhere; }
+.process-entry-label { margin: 5px 0 0; color: var(--syn-ink-4); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; }
+.process-entry-empty { margin: 3px 0 0; color: var(--syn-ink-4); font-size: 12px; font-style: italic; }
 .card-inspector-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; padding: 11px 14px; border-top: 1px solid var(--syn-line-soft); background: #fff; }
 .card-inspector-actions button { display: inline-flex; min-height: 30px; align-items: center; gap: 4px; padding: 0 9px; font-size: 11px; font-weight: 600; transition: transform 140ms ease-out, border-color 150ms ease, background 150ms ease, color 150ms ease; }
 .card-inspector-actions button svg { width: 13px; height: 13px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; }

@@ -109,6 +109,9 @@ const state = {
   draft: null, error: '', workspaceLoad: 0, branchAnchors: new Map(savedBranchAnchors), cardPositions: new Map(savedCardPositions), collapsedCardIds: new Set(savedCollapsedCards), expandedCardIds: new Set(savedExpandedCards), quickPhrases: savedQuickPhrases, quickPhraseEditorOpen: false,
   dragging: false, canvasGesture: false, canvasRefreshAfter: 0, canvasViewInitialized: false, canvasCamera: { x: 0, y: 0 }, mapCardSessionSwitches: new Set(),
   expandedMessageIds: new Set(),
+  // The inspector's tool rows are open by default, so what it stores is the
+  // opposite: the rows the reader explicitly closed.
+  collapsedProcessIds: new Set(),
   canvasCards: undefined, canvasCardsById: undefined, canvasGraph: undefined, mountedCardIds: new Set(), canvasNeedsCenter: false,
   detailScrollByThread: new Map(), detailThreadId: null, detailTargetCardId: null,
   inspectorCardId: null, inspectorOpening: false, inspectorScrollByCard: new Map(), inspectorWidth: savedInspectorWidth,
@@ -1785,19 +1788,39 @@ function processState(entry) {
   return entry.result === null || entry.result === undefined ? 'pending' : 'done'
 }
 
-/** One row per tool call: name + status, expandable to its arguments/result. */
-function processEntries(process, key) {
+/**
+ * One row per tool call: name + status, plus its arguments and result.
+ * `options.openByDefault` is what the inspector uses: the drawer is where a
+ * turn's tool work is read, so a row arrives open and the reader folds what they
+ * are done with. The detail view keeps the opt-in behaviour, because there the
+ * rows sit inside the 过程记录 fold and would otherwise open twice.
+ */
+function processEntries(process, key, options = {}) {
+  const openByDefault = options.openByDefault === true
   return process.map((entry, index) => {
     const entryKey = `${key}:${index}`
-    const entryExpanded = state.expandedMessageIds.has(entryKey)
+    const open = openByDefault ? !state.collapsedProcessIds.has(entryKey) : state.expandedMessageIds.has(entryKey)
     const state_ = processState(entry)
     const status = state_ === 'failed' ? '失败' : state_ === 'pending' ? '等待结果' : '完成'
     const statusClass = state_ === 'failed' ? ' process-status-error' : state_ === 'pending' ? ' process-status-pending' : ' process-status-done'
-    const argumentsHtml = typeof entry.arguments === 'string' && entry.arguments !== '' ? `<pre class="process-args">${escapeHtml(entry.arguments)}</pre>` : ''
-    const outcomeHtml = state_ === 'failed' && typeof entry.error === 'string' && entry.error !== ''
-      ? `<pre class="process-error">${escapeHtml(entry.error)}</pre>`
-      : typeof entry.result === 'string' && entry.result !== '' ? `<pre class="process-result">${escapeHtml(entry.result)}</pre>` : ''
-    return `<div class="process-entry${entryExpanded ? ' expanded' : ''}"><button class="process-entry-fold" data-action="toggle-message" data-message="${escapeHtml(entryKey)}"><span class="process-entry-name">${escapeHtml(entry.name)}</span><span class="process-status${statusClass}">${status}</span></button>${entryExpanded ? `<div class="process-entry-body">${argumentsHtml}${outcomeHtml}</div>` : ''}</div>`
+    // A tool name can be missing on a v3-era record; an empty row reads like a
+    // rendering bug, so fall back to the generic label.
+    const name = typeof entry.name === 'string' && entry.name.trim() !== '' ? entry.name : '工具调用'
+    const argumentsHtml = typeof entry.arguments === 'string' && entry.arguments.trim() !== ''
+      ? `<p class="process-entry-label">参数</p><pre class="process-args">${escapeHtml(entry.arguments)}</pre>`
+      : ''
+    const outcome = state_ === 'failed' && typeof entry.error === 'string' && entry.error !== ''
+      ? `<p class="process-entry-label">错误</p><pre class="process-error">${escapeHtml(entry.error)}</pre>`
+      : typeof entry.result === 'string' && entry.result.trim() !== ''
+        ? `<p class="process-entry-label">结果</p><pre class="process-result">${escapeHtml(entry.result)}</pre>`
+        : ''
+    // Nothing to show yet (a stored record whose body has not hydrated): say so
+    // instead of leaving the row looking truncated.
+    const body = argumentsHtml === '' && outcome === ''
+      ? '<p class="process-entry-empty">暂无参数与结果</p>'
+      : argumentsHtml + outcome
+    const action = openByDefault ? 'toggle-process' : 'toggle-message'
+    return `<div class="process-entry${open ? ' expanded' : ''}"><button class="process-entry-fold" type="button" data-action="${action}" data-message="${escapeHtml(entryKey)}"><span class="process-entry-name">${escapeHtml(name)}</span><span class="process-status${statusClass}">${status}</span></button>${open ? `<div class="process-entry-body">${body}</div>` : ''}</div>`
   }).join('')
 }
 
@@ -1873,8 +1896,9 @@ function renderCardInspector(card) {
     : `<article class="card-inspector-answer md">${renderMarkdown(card.answer.text)}${card.answer.pending ? '<p class="card-inspector-pending">正在回复</p>' : ''}</article>`
   const error = card.error === null ? '' : `<section class="card-inspector-error" role="alert"><strong>本轮未完成</strong><p>${escapeHtml(card.error.text)}</p></section>`
   // Tool calls are shown, not hidden behind one more fold: the drawer lists the
-  // turn's calls as rows under a 「工具调用」label, each row opening its payload.
-  const processRecordsHtml = process.length === 0 ? '' : `<section class="card-inspector-process"><p class="card-inspector-section">工具调用</p>${processEntries(process, `${thread.id}:${card.id}:inspector`)}</section>`
+  // turn's calls under a 「工具调用」label, each row already open with its
+  // arguments and result — the payload is the point, the row header only names it.
+  const processRecordsHtml = process.length === 0 ? '' : `<section class="card-inspector-process"><p class="card-inspector-section">工具调用</p>${processEntries(process, `${thread.id}:${card.id}:inspector`, { openByDefault: true })}</section>`
   const continueAction = card.canContinue === true ? `<button type="button" data-action="open-continue" data-thread="${thread.id}" data-card="${escapeHtml(card.id)}"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.5h11v7h-6l-3.5 2.5v-2.5h-1.5Z"/><path d="M8 5.5v3M6.5 7h3"/></svg>继续追问</button>` : ''
   const branch = Number.isInteger(card.answer?.sourceSeq)
     ? `<button type="button" data-action="open-branch" data-thread="${thread.id}" data-card="${escapeHtml(card.id)}" data-seq="${card.answer.sourceSeq}"><svg aria-hidden="true" viewBox="0 0 16 16"><circle cx="4" cy="3.5" r="1.5"/><circle cx="12" cy="3.5" r="1.5"/><circle cx="12" cy="12.5" r="1.5"/><path d="M5.5 3.5h2A2.5 2.5 0 0 1 10 6v5"/></svg>创建分支</button>`
@@ -2818,6 +2842,8 @@ app.addEventListener('click', async event => {
     }
     if (button.dataset.action === 'cancel-draft') { state.draft = null; state.quickPhraseEditorOpen = false; render() }
     if (button.dataset.action === 'toggle-message' && button.dataset.message !== undefined) { state.expandedMessageIds.has(button.dataset.message) ? state.expandedMessageIds.delete(button.dataset.message) : state.expandedMessageIds.add(button.dataset.message); renderPreservingDetailScroll() }
+    // Inspector rows are open by default, so toggling records the closed ones.
+    if (button.dataset.action === 'toggle-process' && button.dataset.message !== undefined) { state.collapsedProcessIds.has(button.dataset.message) ? state.collapsedProcessIds.delete(button.dataset.message) : state.collapsedProcessIds.add(button.dataset.message); renderPreservingDetailScroll() }
     if (button.dataset.action === 'open-dsh' && thread?.dshSessionId !== null) post('synapse:open-session', { sessionId: thread.dshSessionId, seq: Number.isInteger(Number(button.dataset.seq)) ? Number(button.dataset.seq) : undefined })
     if (button.dataset.action === 'archive-thread' && thread !== undefined) await archiveThread(thread)
     if (button.dataset.action === 'focus-active') focusActiveCard()
