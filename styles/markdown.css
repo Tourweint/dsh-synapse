@@ -1,0 +1,64 @@
+/* ── Rendered markdown: one reading rhythm ────────────────────────────────
+   `.md` is the single typography contract for model output, shared by the
+   inspector and the detail view. Rules:
+   - one measure (the drawer width, ~60–75 characters at 13.5px), one rhythm:
+     12px between blocks, 20px around a heading, so a long answer reads as
+     paragraphs instead of a wall;
+   - the separator `---` is a 1px rule with air on both sides, never 5px of
+     stray text; a `>` quote is a thin accent-free rail with inset padding;
+   - headings step down by size only (19 / 16.5 / 14.5), no colour change
+     beyond ink, so they do not compete with the question in the header;
+   - code sits on the soft surface with a language tag, tables lose their grid
+     and keep hairline rows, links are the only blue thing in the block. */
+.md { color: var(--syn-ink-2); font-size: 13.5px; line-height: 1.78; overflow-wrap: anywhere; text-wrap: pretty; }
+.md > * { margin: 0; }
+.md > * + * { margin-top: 12px; }
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { color: var(--syn-ink); font-weight: 660; line-height: 1.42; letter-spacing: -.01em; }
+.md h1 { margin-top: 24px; font-size: 19px; }
+.md h2 { margin-top: 22px; font-size: 16.5px; }
+.md h3 { margin-top: 20px; font-size: 14.5px; }
+.md h4, .md h5, .md h6 { margin-top: 18px; font-size: 13.5px; }
+.md > :first-child { margin-top: 0; }
+.md p { margin: 0; }
+.md strong { color: var(--syn-ink); font-weight: 650; }
+.md ul, .md ol { padding-left: 1.4em; }
+.md li + li { margin-top: 5px; }
+.md li > ul, .md li > ol { margin-top: 5px; }
+.md li::marker { color: var(--syn-ink-4); }
+.md .task-item { display: flex; align-items: flex-start; gap: 8px; list-style: none; margin-left: -1.35em; }
+.md .task-box { width: 13px; height: 13px; flex: none; margin-top: 5px; border: 1.5px solid var(--syn-ink-4); border-radius: 4px; }
+.md .task-box.is-checked { border-color: var(--syn-accent); background: var(--syn-accent); }
+.md hr { height: 1px; margin: 22px 0; border: 0; background: var(--syn-line); }
+.md blockquote { margin: 16px 0; padding: 2px 0 2px 14px; border-left: 2px solid var(--syn-line-strong); color: var(--syn-ink-2); }
+.md blockquote > :first-child { margin-top: 0; }
+.md code { border-radius: 4px; background: var(--syn-surface-2); padding: 1px 5px; color: var(--syn-ink); font-family: "Cascadia Code", Consolas, "Courier New", monospace; font-size: .88em; }
+.md pre { position: relative; margin: 14px 0; overflow-x: auto; border: 1px solid var(--syn-line-soft); border-radius: 9px; background: var(--syn-code-bg); padding: 12px 14px; font-size: 12px; line-height: 1.7; }
+.md pre code { display: block; background: transparent; padding: 0; color: var(--syn-code-ink); font-size: inherit; white-space: pre; }
+/* Token colours from the tokenizer (`highlightCode()` in app.js). Only the
+   classes it can emit are listed, and only IDE values live behind them — the
+   block keeps this one flat surface, no per-token weight or decoration. */
+.md .tok-key { color: var(--syn-tok-key); }
+.md .tok-str { color: var(--syn-tok-str); }
+.md .tok-num { color: var(--syn-tok-num); }
+.md .tok-com { color: var(--syn-tok-com); font-style: italic; }
+.md .tok-fn { color: var(--syn-tok-fn); }
+.md .tok-type { color: var(--syn-tok-type); }
+.md .tok-tag { color: var(--syn-tok-tag); }
+.md .tok-attr { color: var(--syn-tok-attr); }
+.md pre[data-lang]::before { content: attr(data-lang); position: absolute; top: 7px; right: 12px; color: var(--syn-ink-4); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
+.md table { display: block; width: 100%; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 12.5px; }
+.md th, .md td { padding: 8px 12px; border-bottom: 1px solid var(--syn-line-soft); text-align: left; vertical-align: top; }
+.md th { background: var(--syn-surface-2); color: var(--syn-ink); font-weight: 650; white-space: nowrap; }
+.md tbody tr:last-child td { border-bottom: 0; }
+.md a { color: var(--syn-link); text-decoration: none; }
+.md a:hover { text-decoration: underline; }
+.md s { color: var(--syn-ink-4); }
+@media (max-width: 760px) { .synapse-shell { --sidebar-width: 200px; --sidebar-inner-width: 176px; } .synapse-shell.sidebar-collapsed { --sidebar-width: 56px; }  .detail-flow, .message-composer { max-width: calc(100% - 24px); } .message-composer { margin-bottom: 10px; } .message-user .message-body { max-width: 92%; } .compare-view { padding: 26px 18px; } .compare-columns { grid-template-columns: 1fr; } .brand strong { display: none; }
+  /* Narrow screens turn the drawer into a bottom sheet. `!important` is the one
+     place it is needed: app.js writes the width as an inline custom property,
+     and an inline declaration beats a media-query one. */
+  .card-inspector { --inspector-width: 100% !important; top: auto; min-width: 0; max-width: none; max-height: 78%; border-top: 1px solid var(--syn-line); border-left: 0; }
+  .card-inspector-resizer { display: none; }
+  .card-inspector.is-opening, .card-inspector.is-closing { transform: translateY(24px); } }
+@media (max-width: 560px) { .synapse-shell { min-width: 0; grid-template-columns: 1fr; } .sidebar { display: none; } .content-pane { grid-column: 1; }  .top-actions > button { font-size: 11px; padding: 0 7px; } .thread-card { width: 280px; } }
+@media (prefers-reduced-motion: reduce) { .card-inspector { transition: opacity 120ms ease; } .card-inspector.is-opening, .card-inspector.is-closing { transform: none; } .synapse-shell, .synapse-shell.sidebar-collapsed, .sidebar, .sidebar-collapsed .sidebar, .sidebar-panel, .new-workspace, .new-workspace span, .brand strong, .brand::after, .rail-toggle, .rail-toggle svg, .tree-row, .workspace-chevron, .workspace-trigger, .canvas-tabs button, .composer-send { transition: none; } .workspace-menu { animation: none; } .sidebar-collapsed .sidebar-panel { transform: none; } .tree-row:active, .rail-toggle:active, .composer-send:active { transform: none; } }

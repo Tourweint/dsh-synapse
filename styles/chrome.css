@@ -1,0 +1,160 @@
+/* ── 问答排列选择器 ──────────────────────────────────────────────────────
+   Four diagrams instead of a dropdown: the point is to see the shape before
+   committing. `position: fixed` is what lets it hang below the toolbar — the
+   conversation surface clips its own children. The trigger is a glyph now, so
+   its open state rides `.header-action.is-icon.active`. */
+.arrangement-menu { position: fixed; z-index: 80; width: 208px; border: 1px solid var(--syn-line); border-radius: 10px; background: var(--syn-surface); padding: 10px; box-shadow: 0 6px 24px rgba(15,23,42,.14); }
+.arrangement-menu[hidden] { display: none; }
+.arrangement-title { margin: 0 0 8px; color: var(--syn-ink-3); font-size: 11px; }
+.arrangement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.arrangement-option { display: grid; justify-items: center; gap: 4px; min-height: 0; border: 1px solid var(--syn-line-soft); border-radius: 8px; background: var(--syn-surface-2); padding: 7px 4px 5px; color: var(--syn-ink-3); font-size: 10px; }
+.arrangement-option:hover { border-color: var(--syn-line); background: var(--syn-surface-3); color: var(--syn-ink); }
+.arrangement-option.active { border-color: var(--syn-ink); background: var(--syn-surface); color: var(--syn-ink); }
+.arrangement-thumb { width: 44px; height: 34px; }
+.arrangement-thumb .thumb-question { fill: var(--syn-surface); stroke: var(--syn-ink-4); stroke-width: 1; }
+.arrangement-thumb .thumb-answer { fill: var(--syn-ink); opacity: .72; }
+.arrangement-option.active .arrangement-thumb .thumb-question { stroke: var(--syn-ink-2); }
+.arrangement-note { margin: 8px 0 0; color: var(--syn-ink-4); font-size: 10px; line-height: 1.5; }
+/* The aside is only a viewport: it narrows, the inner column does not. `overflow:
+   hidden` is what turns the rail into a clip instead of a reflow. */
+/* No background of its own: the aside and the shell base are one layer, which is
+   what lets the content card float above both without a groove between them. */
+.sidebar { grid-row: 1 / -1; display: flex; flex-direction: column; gap: 0; min-height: 0; overflow: hidden; padding: 6px var(--sidebar-gutter); }
+.sidebar-inner { display: flex; width: var(--sidebar-inner-width); min-width: 0; min-height: 0; flex: 1 1 auto; flex-direction: column; }
+.sidebar-panel { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; transition: opacity 220ms cubic-bezier(.165,.84,.44,1) 80ms, transform 220ms cubic-bezier(.165,.84,.44,1) 80ms, visibility 0s 0s; }
+/* The pill shrinks into a square on the rail without re-laying out its content:
+   `justify-content: center` keeps the icon on the button's own centre line, and
+   the label collapses to zero width, so the icon stays centred the whole way. */
+.new-workspace { display: flex; width: 100%; min-height: auto; height: 38px; align-items: center; justify-content: center; gap: 0; margin: 8px 0 0; overflow: hidden; border-color: rgba(0,0,0,.1); border-radius: 12px; background: #fff; padding: 8px 12px; color: var(--syn-ink); font-size: 14px; font-weight: 500; transition: width 360ms var(--sidebar-ease-open), height 360ms var(--sidebar-ease-open), border-radius 360ms var(--sidebar-ease-open), padding 360ms var(--sidebar-ease-open); }
+.new-workspace span { max-width: 120px; margin-left: 6px; overflow: hidden; white-space: nowrap; transition: max-width 360ms var(--sidebar-ease-open), margin-left 360ms var(--sidebar-ease-open), opacity 220ms cubic-bezier(.165,.84,.44,1) 80ms; }
+.new-session-icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+.new-workspace:hover { border-color: rgba(0,0,0,.16); background: var(--syn-surface-3); color: var(--syn-ink); }
+.workspace-label, .sidebar-heading { color: var(--syn-ink-3); font-size: 14px; font-weight: 400; letter-spacing: 0; }
+.workspace-label { display: grid; gap: 9px; margin: 16px 4px 0; }
+/* ── Workspace picker: a custom listbox, not a native <select> ────────────
+   A native select cannot animate, cannot round its popup and cannot be themed,
+   so the trigger is a button and the list is ours: 12px corners, a hairline,
+   the soft elevation, and a 180ms rise from under the trigger (transform +
+   opacity only, so it never re-lays the sidebar out mid-animation). */
+.workspace-select { position: relative; display: block; }
+.workspace-trigger { display: flex; width: 100%; min-height: 33px; align-items: center; gap: 7px; border: 1px solid var(--syn-line); border-radius: 8px; background: var(--syn-surface); padding: 0 8px; color: var(--syn-ink-2); font-size: 13px; text-align: left; transition: border-color 150ms ease, background 150ms ease; }
+.workspace-trigger:hover, .workspace-trigger.open { border-color: var(--syn-line-strong); }
+.workspace-folder { width: 15px; height: 15px; flex: none; fill: none; stroke: var(--syn-ink-3); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; }
+.workspace-trigger-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-chevron { width: 14px; height: 14px; flex: none; fill: none; stroke: var(--syn-ink-3); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; transition: transform 200ms cubic-bezier(.34,1.25,.64,1); }
+.workspace-trigger.open .workspace-chevron { transform: rotate(180deg); }
+.workspace-menu { position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; left: 0; display: grid; max-height: 286px; gap: 1px; overflow-y: auto; border: 1px solid var(--syn-line); border-radius: 12px; background: var(--syn-surface); padding: 4px; box-shadow: 0 10px 28px rgba(15,23,42,.16); transform-origin: top center; animation: workspace-menu-in 180ms cubic-bezier(.16,1,.3,1); }
+@keyframes workspace-menu-in { from { opacity: 0; transform: translateY(-6px) scale(.97); } }
+.workspace-option { display: flex; min-height: 32px; align-items: center; gap: 8px; border: 0; border-radius: 8px; background: transparent; padding: 0 8px; color: var(--syn-ink-2); font-size: 13px; text-align: left; }
+.workspace-option:hover { border: 0; background: var(--syn-surface-2); color: var(--syn-ink); }
+.workspace-option.selected { color: var(--syn-ink); }
+.workspace-option-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-option-check { width: 14px; height: 14px; flex: none; fill: none; stroke: var(--syn-link); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; opacity: 0; }
+.workspace-option.selected .workspace-option-check { opacity: 1; }
+.workspace-empty { margin: 0; padding: 10px 8px; color: var(--syn-ink-3); font-size: 12px; }
+.sidebar-heading { display: flex; align-items: center; justify-content: space-between; margin: 23px 4px 0; padding: 0; }
+.sidebar-heading button { display: grid; width: 24px; min-height: 24px; place-items: center; padding: 0; color: var(--syn-ink); font-size: 17px; }
+.thread-tree { display: grid; min-height: 0; flex: 1 1 auto; align-content: start; gap: 3px; overflow: auto; padding-bottom: 12px; }
+.tree-row { display: flex; min-width: 0; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--syn-ink-2); text-align: left; transition: transform 220ms cubic-bezier(.34,1.3,.64,1), background-color 150ms ease; }
+.tree-row:hover { background: var(--syn-surface-3); }
+/* Press reads as a physical push (scale), not only a colour swap. */
+.tree-row:active { transform: scale(.98); transition: transform 120ms cubic-bezier(.16,1,.3,1), background-color 150ms ease; }
+.tree-row.active { background: var(--syn-surface-3); color: var(--syn-ink); font-weight: 650; }
+.tree-row span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.tree-row i { margin-left: auto; color: var(--syn-ink-4); font-size: 10px; font-style: normal; }
+.tree-dot, .topic-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--thread-color, var(--syn-ink-2)); }
+.tree-row { --thread-color: var(--syn-accent) !important; }
+.tree-empty { padding: 12px 5px; color: var(--syn-ink-4); font-size: 12px; }
+/* The conversation surface is the only raised/rounded thing in the frame, and it
+   rounds ONE corner: the host sets `border-radius: 16px 0 0 0` plus
+   `corner-shape: round` on `.centerCol` under Windows (ui-layout/
+   AppFrame.module.css) — every other corner, and the divider, stays square. It
+   also opts back OUT of the global `superellipse(1.5)` smoothing there, so a
+   circular arc is the faithful shape at this size; flip the two comments below
+   to `superellipse(1.5)` if the squircle reading is ever wanted.
+   Flush to the top/right/bottom: no margins, so no strips. The radius lives on
+  `.content-pane` so the tab row inside is clipped by the same curve. */
+.main-stage { position: relative; min-width: 0; min-height: 0; flex: 1 1 auto; overflow: hidden; background: transparent; }
+/* Collapse = clip, fade, release the rail. Nothing is `display:none`-ed mid-flight
+   (that froze the layout for one frame and read as a snap), and nothing inside
+   changes size — the aside's width alone does the work. */
+/* The rail keeps the mark, not the wordmark or the tag: the collapse control now
+   lives in the conversation header, so this is the only thing left in the strip. */
+.sidebar-collapsed .brand strong, .sidebar-collapsed .brand::after { opacity: 0; transition: opacity 100ms linear; }
+.sidebar-collapsed .sidebar-panel { opacity: 0; transform: translateX(-10px); visibility: hidden; transition: opacity 110ms cubic-bezier(.4,0,1,1), transform 140ms cubic-bezier(.4,0,1,1), visibility 0s 140ms; }
+.sidebar-collapsed .new-workspace { width: 32px; height: 32px; min-height: 32px; margin: 8px 0 0; border-radius: 10px; padding: 0; transition: width 250ms var(--sidebar-ease-close), height 250ms var(--sidebar-ease-close), border-radius 250ms var(--sidebar-ease-close), padding 250ms var(--sidebar-ease-close); }
+.sidebar-collapsed .new-workspace span { max-width: 0; margin-left: 0; opacity: 0; transition: max-width 250ms var(--sidebar-ease-close), margin-left 250ms var(--sidebar-ease-close), opacity 100ms linear; }
+.status-message { position: absolute; z-index: 6; top: 12px; right: 16px; display: flex; align-items: center; gap: 10px; max-width: 400px; padding: 9px 10px 9px 13px; border: 1px solid var(--syn-danger-line); border-radius: 8px; background: var(--syn-danger-soft); color: var(--syn-danger); font-size: 12px; box-shadow: 0 3px 10px rgba(127,29,29,.12); }
+.status-message span { flex: 1; line-height: 1.5; }
+.status-message button { display: grid; width: 22px; height: 22px; flex: none; place-items: center; border: 0; border-radius: 50%; background: transparent; padding: 0; color: var(--syn-danger); font-size: 15px; line-height: 1; }
+.status-message button:hover { background: var(--syn-danger-line); }
+.main-stage { display: flex; min-width: 0; min-height: 0; flex-direction: column; overflow: hidden; background: transparent; }
+/* One header row for the whole surface: the rail toggle and the view switch share
+   it, so there is no separate 42px bar above the surface. 16px of left padding
+   keeps the round toggle out of the 16px corner it would otherwise be clipped by. */
+/* 76px with its rule — the host's conversation header: `min-height: 76px` in
+   ui-conversation/skeleton/ConversationRoot.module.css, made of a 10px top
+   inset, a 30px title row, a 10px gap and a 25px view-tab row. That is also what
+   puts the rule on the sidebar's New Session bar (its centre is y≈73), so the two
+   columns' rules read as one line across the edge.
+   Two rows here too: chrome on top (rail toggle, zoom cluster), view tabs in the
+   bottom row so the active bar lands on the rule. */
+.canvas-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: 38px 38px; height: 76px; flex: none; padding: 0 24px 0 16px; border-bottom: 0.5px solid var(--syn-line); background: var(--syn-panel); }
+/* Back where it always was: the header grid's first cell, vertically centred in
+   the 38px chrome row (28px disc, 16px glyph). No absolute placement, no
+   corner-matching — this is the original position. */
+.rail-toggle { grid-column: 1; grid-row: 1; align-self: center; }
+/* Host tab strip (ui-conversation `ConversationRoot.module.css`): 25px text row,
+   32px gap, and a 35px hit box that bleeds 10px above and beside the label. The
+   active bar is 2px, blue, and reaches 1px past the tab so it covers the header
+   rule instead of floating above it.
+   The selected tab is keyed off the NAV's `data-active`, not the button's class:
+   the clicked button is the focused node, and a render must be able to repaint a
+   focused node's state (it is patched, only a text caret owner is frozen). */
+.canvas-tabs { display: flex; grid-column: 1 / -1; grid-row: 2; height: 38px; align-items: flex-end; gap: 32px; padding-left: 12px; }
+.canvas-tabs button { position: relative; min-height: 35px; margin: -10px -10px 0; border: 0; border-radius: 0; background: transparent; padding: 10px 10px 9px; color: var(--syn-ink-3); font-size: 13px; font-weight: 500; line-height: 16px; transition: color 120ms ease; }
+.canvas-tabs button::after { content: ''; position: absolute; right: 10px; bottom: -1px; left: 10px; height: 2px; border-radius: 2px; background: transparent; }
+/* Blue, not ink: the selected/hovered view rides the business blue (link) the
+   way the host's `.tabActive` does — brand-primary resolves to near-black here. */
+.canvas-tabs button:hover { background: transparent; color: var(--syn-link); }
+.canvas-tabs[data-active="canvas"] button[data-action="show-canvas"],
+.canvas-tabs[data-active="thread"] button[data-action="show-thread"] { color: var(--syn-link); }
+.canvas-tabs[data-active="canvas"] button[data-action="show-canvas"]::after,
+.canvas-tabs[data-active="thread"] button[data-action="show-thread"]::after { background: var(--syn-link); }
+.canvas-tabs button:disabled { cursor: default; opacity: .4; }
+/* ── Header actions: one cluster, both views ──────────────────────────────
+   Map tools and session actions are the same component on the same slot (row 1,
+   right), so switching views never changes the height, weight or hover of that
+   corner. Frequency decides the shape, not the view: the two actions you reach
+   for constantly (整理 / 定位) keep their words, the occasional one (排列) is
+   glyph-only, and zoom is a read-out instead of three buttons. */
+.header-actions { grid-column: 3; grid-row: 1; align-self: center; justify-self: end; display: flex; align-items: center; gap: 2px; }
+.header-action { display: inline-flex; min-height: 26px; align-items: center; gap: 5px; border: 0; border-radius: 6px; background: transparent; padding: 0 8px; color: var(--syn-ink-3); font-size: 12px; font-weight: 500; line-height: 1; white-space: nowrap; transition: background 130ms ease, color 130ms ease; }
+.header-action:hover { border: 0; background: var(--syn-surface-3); color: var(--syn-ink); }
+.header-action svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; }
+.header-action.is-icon { width: 26px; justify-content: center; padding: 0; }
+.header-action.is-icon.active { background: var(--syn-surface-3); color: var(--syn-ink); }
+/* The zoom meter: a hairline track on the log axis the chase runs on, plus the
+   number. A divider keeps it from reading as one more button. */
+.zoom-meter { display: inline-flex; align-items: center; gap: 7px; margin-left: 7px; padding-left: 9px; border-left: 1px solid var(--syn-line-soft); color: var(--syn-ink-3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.zoom-meter-track { display: block; width: 52px; height: 3px; overflow: hidden; border-radius: 2px; background: var(--syn-surface-3); }
+.zoom-meter-fill { display: block; height: 100%; border-radius: inherit; background: var(--syn-ink-3); }
+.zoom-meter-value { min-width: 30px; text-align: right; }
+.canvas-view { position: relative; display: flex; min-height: 0; flex: 1; }
+/* The canvas void is light gray (matching the DSH main stage) instead of pure
+   white, and the pan cursor is a custom dark hand with a light outline so it
+   stays visible on both light and dark canvases (system light-theme pointers
+   vanish on a white void). */
+.canvas-viewport { position: relative; width: 100%; height: 100%; min-height: 0; flex: 1; overflow: hidden; background: var(--syn-panel); cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24'><g fill='none' stroke='%23ffffff' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'><path d='M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/></g><g fill='none' stroke='%23374151' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/></g></svg>") 11 12, grab; }
+.canvas-viewport.is-panning { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24'><g fill='none' stroke='%23ffffff' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'><path d='M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/></g><g fill='none' stroke='%231f2937' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/></g></svg>") 11 12, grabbing; user-select: none; }
+/* While panning, promote the canvas to its own composited layer so the
+   browser GPU-transforms the whole subtree instead of repainting every card
+   and connector per frame. Zoom drops the layer to avoid upscaling a stale
+   raster (see zoomCanvas in app.js). */
+.canvas-viewport.is-panning .canvas-content { will-change: transform; }
+.canvas-content { position: absolute; inset: 0; transform-origin: 0 0; }
+.connectors { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.connectors path { fill: none; stroke: var(--syn-ink-4); stroke-width: 1.5; }
+.connectors path.active-connector { stroke: var(--syn-accent); }
+.connectors .draft-connector { stroke: var(--syn-accent); stroke-dasharray: 5 4; }
+.cards-layer { position: absolute; inset: 0; }

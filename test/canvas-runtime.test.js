@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import vm from 'node:vm'
-import { pickApp, readAppSource } from './source.js'
+import { pickApp, readAppSource, readStyles } from './source.js'
 
 test('clamps the canvas zoom and chases the target over several frames', async () => {
   const source = await readAppSource()
@@ -109,7 +109,7 @@ test('keeps the wheel zooming the map and only yields it to the draft textarea',
 })
 
 test('clips the card text instead of giving the card a scroll area', async () => {
-  const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  const styles = await readStyles()
   const card = await readAppSource()
 
   // No per-card scrollbar: both card kinds clamp their text, and the inspector
@@ -124,7 +124,7 @@ test('clips the card text instead of giving the card a scroll area', async () =>
 
 test('splits a turn into a question card and an answer card', async () => {
   const source = await readAppSource()
-  const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  const styles = await readStyles()
   const build = source.slice(source.indexOf('function turnCardNode'), source.indexOf('function conversationGraphView'))
   const card = source.slice(source.indexOf('function conversationCard'), source.indexOf('function draftActions'))
 
@@ -187,7 +187,7 @@ test('draws the pair link as a short drop even when one card is nudged', async (
 
 test('offers an in-map picker for the question/answer arrangement', async () => {
   const source = await readAppSource()
-  const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  const styles = await readStyles()
   const start = source.indexOf("button.dataset.action === 'set-question-position'")
   const action = source.slice(start, source.indexOf('} catch (error)', start))
 
@@ -248,7 +248,7 @@ test('switching sessions from a map card keeps the current camera position', asy
 
 test('keeps conversation highlighting separate from the exact selected card', async () => {
   const source = await readAppSource()
-  const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  const styles = await readStyles()
   const tokens = await readFile(new URL('../tokens.css', import.meta.url), 'utf8')
   const connectors = source.slice(source.indexOf('function canvasConnectors'), source.indexOf('function conversationCard(card, graph)'))
   const card = source.slice(source.indexOf('function conversationCard(card, graph)'), source.indexOf('function draftActions'))
@@ -272,7 +272,7 @@ test('keeps conversation highlighting separate from the exact selected card', as
 
 test('opens the clicked card in a tool-aware detail inspector', async () => {
   const source = await readAppSource()
-  const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  const styles = await readStyles()
   const cardClick = source.slice(source.indexOf('if (!(button instanceof HTMLElement)) {'), source.indexOf("if (button.dataset.action === 'close')"))
   const inspector = await pickApp('inspector')
 
@@ -309,7 +309,7 @@ test('opens the clicked card in a tool-aware detail inspector', async () => {
 
 test('resizes the inspector by dragging its left edge within bounds', async () => {
   const source = await readAppSource()
-  const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  const styles = await readStyles()
   const resizer = source.slice(source.indexOf('function installInspectorResizer'), source.indexOf("window.addEventListener('resize'"))
 
   // Bounds are explicit, and MAX also yields to the pane so the map survives.
@@ -373,7 +373,7 @@ test('renders the refactored detail view with role-based messages', async () => 
   assert.doesNotMatch(message, /message-avatar/)
   // The question is a bubble on the shared token, the answer is bare prose: no
   // per-message card left to wrap the Q&A in a second container.
-  const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  const styles = await readStyles()
   assert.match(styles, /\.detail-flow \{[^}]*max-width: min\(920px/)
   assert.match(styles, /\.message-user \.message-body \{[^}]*var\(--syn-bubble\)/)
   assert.doesNotMatch(styles, /\.message-user headers? \{/)
@@ -432,7 +432,7 @@ test('opens a prefilled follow-up draft from selected answer text', async () => 
 
 test('renders editable quick phrases in follow-up and branch drafts', async () => {
   const source = await readAppSource()
-  const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  const styles = await readStyles()
 
   assert.match(source, /DEFAULT_QUICK_PHRASES = \['展开说明', '举例', '通俗易懂', '对比解释'\]/)
   assert.match(source, /QUICK_PHRASES_KEY/)
@@ -479,7 +479,7 @@ test('renders a follow-up plus on final cards and fold plus branch controls on n
 })
 
 test('positions the latest plus at the connector and the branch icon below the fold control', async () => {
-  const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8')
+  const styles = await readStyles()
 
   // The fold control sits on the card's middle line; the branch pill hangs one
   // step below it (20px button + 4px gap), not beside it.

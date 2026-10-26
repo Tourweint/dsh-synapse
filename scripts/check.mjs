@@ -5,8 +5,11 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 
 const root = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
-const app = (await readdir(join(root, 'app'))).filter(file => file.endsWith('.js')).sort()
-const files = ['index.js', 'client.js', ...app.map(file => join('app', file))]
+const scripts = async directory => (await readdir(join(root, directory)))
+  .filter(file => file.endsWith('.js'))
+  .sort()
+  .map(file => join(directory, file))
+const files = ['index.js', 'client.js', ...await scripts('app'), ...await scripts('host')]
 
 let failed = 0
 for (const file of files) {

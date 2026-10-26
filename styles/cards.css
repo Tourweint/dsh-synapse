@@ -1,0 +1,66 @@
+/* ── Card: two clipped statements ─────────────────────────────────────────
+   The question on top (verbatim, clamped to 2 lines), the answer's gathered
+   summary under it (clamped to 2 lines). Nothing inside scrolls: the wheel
+   keeps zooming the map and the full answer lives in the inspector. Unfolding
+   swaps in the taller box (app.js `CARD_HEIGHT` / `CARD_HEIGHT_EXPANDED` —
+   these heights must match), and the layout gives the extra height back by
+   pushing the neighbouring cards down instead of letting them be covered.
+
+   `user-select: none` is what makes press-and-hold dragging possible: without
+   it, every attempt to move a card starts by selecting the summary text. */
+/* ── Cards ────────────────────────────────────────────────────────────────
+   One turn is two cards: 问 holds the user's own words, 答 holds only the
+   model's closing prose. Both are the same size — 252×88, or 184 unfolded —
+   and that 92 is arithmetic, not taste: 16px of padding + an 18px label row +
+   a 2px gap + 3 lines at 18px. `CARD_HEIGHT` / `CARD_HEIGHT_EXPANDED` in app.js
+   must change with any of those numbers, or text gets sliced. */
+.thread-card { position: absolute; display: flex; width: 252px; height: 92px; flex-direction: column; border: 1px solid var(--syn-line); border-radius: 9px; background: var(--syn-surface); padding: 8px 12px; box-shadow: 0 1px 2px rgba(33,48,67,.05), 0 3px 10px rgba(33,48,67,.06); cursor: grab; overflow: visible; transition: box-shadow 160ms ease, border-color 160ms ease; user-select: none; -webkit-user-select: none; }
+.thread-card.expanded { height: 188px; }
+.thread-card:hover { border-color: var(--syn-line-strong); box-shadow: 0 2px 5px rgba(33,48,67,.07), 0 10px 22px rgba(33,48,67,.11); }
+.thread-card.is-dragging { cursor: grabbing; box-shadow: 0 10px 26px rgba(33,48,67,.2); }
+.thread-card.selected { box-shadow: 0 0 0 2px rgba(15,17,21,.16), 0 10px 22px rgba(33,48,67,.12); }
+/* A question is your input, not a result: flat and tinted, so the pair reads as
+   "this is what I asked, this is what came back" without any colour coding. */
+.thread-card.is-question { border-color: var(--syn-line-soft); background: var(--syn-surface-2); box-shadow: none; }
+.thread-card.is-question:hover { border-color: var(--syn-line); box-shadow: 0 2px 6px rgba(33,48,67,.08); }
+.thread-card.is-question.selected { box-shadow: 0 0 0 2px rgba(15,17,21,.16); }
+.thread-card-label { display: flex; height: 18px; flex: none; align-items: center; gap: 6px; overflow: hidden; color: var(--syn-ink-4); font-size: 10px; white-space: nowrap; }
+.thread-card-kind { display: grid; width: 14px; height: 14px; flex: none; place-items: center; border-radius: 4px; background: var(--syn-surface-3); color: var(--syn-ink-3); font-size: 9px; font-weight: 700; line-height: 1; }
+.thread-card.is-answer .thread-card-kind { background: var(--syn-ink); color: var(--syn-on-accent); }
+.thread-card-expand { display: grid; width: 14px; height: 14px; min-height: 14px; flex: none; place-items: center; border: 0; border-radius: 4px; background: transparent; padding: 0; color: var(--syn-ink-4); }
+.thread-card-expand:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+.thread-card-expand svg { width: 9px; height: 9px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; transition: transform 160ms cubic-bezier(.23,1,.32,1); }
+.thread-card.expanded .thread-card-expand svg { transform: rotate(180deg); }
+/* The card body is the message, not a preview of one: 3 lines folded, 8 open,
+   clipped rather than scrollable (the map's wheel keeps zooming). */
+.thread-card-text { display: -webkit-box; margin: 2px 0 0; overflow: hidden; color: var(--syn-ink-2); font-size: 12.5px; line-height: 18px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.thread-card.expanded .thread-card-text { -webkit-line-clamp: 8; }
+.thread-card-text.is-question-text { color: var(--syn-ink); font-size: 13px; font-weight: 640; letter-spacing: -.002em; }
+.thread-card-text.is-empty, .thread-card-text.is-pending { color: var(--syn-ink-4); font-style: italic; }
+.thread-card-text.is-error { color: var(--syn-danger); }
+.thread-card-streaming { margin-left: 4px; color: var(--syn-ink-4); font-style: italic; }
+/* Actions live in the label row and stay invisible until the card is hovered:
+   they are the least-used thing on the map and must not compete with the text. */
+.thread-card-actions { display: flex; margin-left: auto; align-items: center; gap: 1px; opacity: 0; transition: opacity 140ms ease; }
+.thread-card:hover .thread-card-actions, .thread-card:focus-within .thread-card-actions { opacity: 1; }
+.thread-card-actions button { display: grid; width: 18px; height: 18px; min-height: 18px; place-items: center; border: 0; border-radius: 5px; background: transparent; padding: 0; color: var(--syn-ink-3); cursor: pointer; }
+.thread-card-actions button:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+.thread-card-actions button svg { width: 12px; height: 12px; flex: none; }
+/* The edge controls are deliberately smaller than a comfortable button: they
+   ride the connector and must not read as part of the card's content. */
+.graph-continue-button, .graph-fold-button, .graph-branch-button { position: absolute; right: -10px; z-index: 4; display: grid; width: 20px; height: 20px; min-height: 20px; place-items: center; border-color: var(--syn-ink-4); border-radius: 50%; background: #fff; padding: 0; color: var(--syn-ink); }
+/* The first slot sits exactly on the card's middle line — it reads as "this is
+   the card's own control". `+` and `-` share that slot (a card never shows
+   both), so the branch pill hangs one step below it instead of nudging both. */
+.graph-continue-button, .graph-fold-button { top: 50%; transform: translateY(-50%); }
+.graph-branch-button { top: calc(50% + 24px); transform: translateY(-50%); }
+.graph-continue-button svg, .graph-fold-button svg, .graph-branch-button svg { width: 11px; height: 11px; }
+.graph-continue-button svg, .graph-fold-button svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.8; }
+.graph-branch-button svg { fill: currentColor; }
+.graph-continue-button:hover, .graph-fold-button:hover, .graph-branch-button:hover { border-color: var(--syn-ink); background: var(--syn-surface-3); }
+.graph-continue-button:focus-visible, .graph-fold-button:focus-visible, .graph-branch-button:focus-visible { outline: 2px solid var(--syn-accent); outline-offset: 2px; }
+.selection-followup { position: fixed; z-index: 90; display: inline-flex; min-height: 30px; align-items: center; gap: 4px; transform: translateX(-100%); border-color: var(--syn-accent); border-radius: 6px; background: var(--syn-accent); padding: 0 8px; color: var(--syn-on-accent); font-size: 12px; font-weight: 650; line-height: 1; box-shadow: 0 4px 12px rgba(37,99,235,.24); user-select: none; }
+.selection-followup:hover { border-color: var(--syn-accent-hover); background: var(--syn-accent-hover); color: var(--syn-on-accent); }
+.selection-followup svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+.selection-followup[hidden] { display: none; }
+.message-pending p { color: var(--syn-ink-2); font-style: italic; }

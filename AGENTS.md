@@ -9,6 +9,7 @@ DeepSeek Harness（DSH）的会话地图插件：零运行时依赖，无构建�
 ## 目录
 
 - [三块代码](#三块代码)
+- [Host 半部的模块划分](#host-半部的模块划分)
 - [画布 UI 的模块划分](#画布-ui-的模块划分)
 - [开发循环](#开发循环)
 - [在本机 App 里调试](#在本机-app-里调试)
@@ -27,15 +28,31 @@ DeepSeek Harness（DSH）的会话地图插件：零运行时依赖，无构建�
 
 | 文件 | 是什么 | 改完要做什么 |
 |---|---|---|
-| `index.js` | Host 半部：路由、投影、存储 | **重启 App** |
+| `index.js` | Host 半部的公开出口（barrel），实现都在 `host/*.js` | **重启 App** |
 | `client.js` | 浏览器桥：把画布注入 DSH 页面 | 刷新页面（还不行就重启 App） |
 | `app/*.js` | 画布 UI：15 个 classic script，跑在 `/synapse/` iframe 里 | 刷新页面 |
 
 **最容易浪费半小时的一条**：地图 iframe 只在 DSH 页面 mount 时创建一次，切「对话 / 会话地图」只是把它 `hidden` 掉再显示，**不会重新拉 `app/*.js` 和 CSS**。所以改完必须整页 `Ctrl+R`，光点标签看不到任何变化。
 
+## Host 半部的模块划分
+
+`host/` 是真正的 ES 模块（`import`/`export`），`index.js` 只是把测试与 DSH 需要的名字再导出一次——别把逻辑写回 barrel 里。
+
+| 模块 | 内容 |
+|---|---|
+| `constants.js` | 各种上限、截断尾巴、颜色表、注入来源白名单 |
+| `values.js` | 校验、标题推断、`proseText()` / `contentText()`、注入判定 |
+| `projection.js` | 会话事件 → 存储图（`normalizeState` / `bodiesFromEvents`） |
+| `store.js` | `WorkspaceStore`：加载、迁移、锁、防抖写盘（最大的一个，~565 行） |
+| `sessions.js` | 读 DSH 会话日志，含 zstd 解压 |
+| `http.js` | `readJson` / `sendJson` / `sendFile` |
+| `apply.js` | 插件入口：`APP_SCRIPTS`、`page()`、路由表 |
+
+**坑**：静态资源读取用的是 `new URL('../tokens.css', import.meta.url)`——模块搬到 `host/` 之后，所有 `./xxx` 都要多一层 `..`，否则只有 harness/页面会 404，单测全绿也看不出来。
+
 ## 画布 UI 的模块划分
 
-`app/` 是**同一份全局作用域**按章节切开的，不是 ES 模块——没有 import/export，也没有打包步骤。顺序就是依赖顺序，唯一权威是 `index.js` 的 `APP_SCRIPTS`（页面 `<script>` 标签和路由都由它生成，测试也从那里取）。
+`app/` 是**同一份全局作用域**按章节切开的，不是 ES 模块——没有 import/export，也没有打包步骤。顺序就是依赖顺序，唯一权威是 `index.js` 里 re-export 的 `APP_SCRIPTS`（页面 `<script>` 标签和路由都由它生成，测试也从那里取）。
 
 | 模块 | 内容 |
 |---|---|
@@ -61,7 +78,7 @@ DeepSeek Harness（DSH）的会话地图插件：零运行时依赖，无构建�
 
 ```powershell
 corepack pnpm install --frozen-lockfile   # 无依赖，只跑 prepare
-corepack pnpm run build                   # node scripts/check.mjs：index.js + client.js + app/*.js
+corepack pnpm run build                   # node scripts/check.mjs：index.js + client.js + app/*.js + host/*.js
 corepack pnpm test                        # node --test test/*.test.js
 cd dev/harness; npm install; npm test     # 真实渲染 + 真实点击（需 jsdom）
 ```
@@ -117,7 +134,7 @@ vm 切片要显式列出模块（`pickApp('text', 'markdown')`），所以改模
 一个 turn 是**两张卡**，纵向成对：**问卡**（用户原话，`role: 'question'`）在上，**答卡**（模型收尾正文，`role: 'answer'`）紧贴其下 20px。节点 id 形如 `<thread>:turn:<seq>:q` / `:a`；两者都带 `turnIndex`，所以详情面板、折叠、拖动都按 turn 走。默认 3 行，点右上箭头展开到 8 行。
 
 1. **两种卡各自只装一种东西**：问卡只放 `question.text`；答卡只放 `card.answer.text` 的 `answerSummary()`。投影层是这道闸门：`proseText()` 只取 `text` 块（`tool-call` / `tool-result` 一律不进助手正文），`INJECTED_USER_SOURCE_KINDS` / `isTimeContextText()` 把 harness 注入的 runtime/time/skill 上下文挡在 turn 之外。任何工具名、参数 JSON、`Time sampled…` 出现在卡片上都是回归。
-2. **尺寸常量必须两边对齐**：`CARD_WIDTH` / `CARD_HEIGHT(92)` / `CARD_HEIGHT_EXPANDED(188)` / `CARD_PAIR_GAP(20)` / `CARD_STEP_X(308)` 与 `styles.css` 的 `.thread-card`（252×92 / `.expanded` 188）是同一组数字，92 = 16 内边距 + 18 标签行 + 2px 间隔 + 3×18 行高。改字号 / 行高 / 内边距 / 间隔必须重算常量，否则文字被裁成半行。布局是**高度感知**的（`cardHeight(card)`），问卡展开会把它的答卡和后续卡顶下去。
+2. **尺寸常量必须两边对齐**：`CARD_WIDTH` / `CARD_HEIGHT(92)` / `CARD_HEIGHT_EXPANDED(188)` / `CARD_PAIR_GAP(20)` / `CARD_STEP_X(308)` 与 `styles/cards.css` 的 `.thread-card`（252×92 / `.expanded` 188）是同一组数字，92 = 16 内边距 + 18 标签行 + 2px 间隔 + 3×18 行高。改字号 / 行高 / 内边距 / 间隔必须重算常量，否则文字被裁成半行。布局是**高度感知**的（`cardHeight(card)`），问卡展开会把它的答卡和后续卡顶下去。
 3. **卡内没有滚动区**：`.thread-card-text` 用 `-webkit-line-clamp` 截断，滚轮始终缩放画布（只有草稿卡片里的 `textarea` 保留原生滚动）。全尺寸正文只在右侧 `.card-inspector` 里。
 4. **卡片不可选中、整卡拖动**：`.thread-card { user-select: none }` + `bindCardDrag()` 的长按（150ms / 5px 阈值）。没有按下就是普通点击（打开 inspector），按住没动就松手也**不写位置**——一旦写进 `card-positions`，这张卡就被 `positionLocked` 钉住，不再参与自动布局。
 5. **inspector 的宽度是 CSS 变量**：`style="--inspector-width:460px"`，CSS 用 `width: var(--inspector-width, 460px)`。窄屏（≤760px）变成底部抽屉时要用 `!important` 覆盖这个内联变量。范围 380–760px，且上限再钳到面板宽的 78%（`clampInspectorWidth`）。点画布空白处会关闭它（`click` 监听里排除 `.card-inspector` / `.thread-card` / `[data-action]`）。
@@ -145,7 +162,7 @@ vm 切片要显式列出模块（`pickApp('text', 'markdown')`），所以改模
 
 ## Markdown 与代码块
 
-Markdown 只走 `.md` 一套排版（`styles.css` 底部）。`markdownBlock()` 必须产出 `hr` / `blockquote` / `ul`+`ol`（可嵌套）/ `.task-item` / `pre.md-code[data-lang]` / `table` / `a[href^=http]`；`---` 与 `>` 掉成纯文本是回归。设计稿在 `dev/design/`（`cards/` 是选型记录，`inspector/` 是三版排版），`node dev/design/inspector/_build.mjs` 用真实渲染器刷新样例。
+Markdown 只走 `.md` 一套排版（`styles/markdown.css`）。`markdownBlock()` 必须产出 `hr` / `blockquote` / `ul`+`ol`（可嵌套）/ `.task-item` / `pre.md-code[data-lang]` / `table` / `a[href^=http]`；`---` 与 `>` 掉成纯文本是回归。设计稿在 `dev/design/`（`cards/` 是选型记录，`inspector/` 是三版排版），`node dev/design/inspector/_build.mjs` 用真实渲染器刷新样例。
 
 **代码块要着色，但只着一种色**。`highlightCode(text, language)` 是单遍扫描，产出 `span.tok-*`（`key` / `str` / `num` / `com` / `fn` / `type` / `tag` / `attr`），不引入依赖、不建语法树。两条硬约束：
 
@@ -201,9 +218,11 @@ Markdown 只走 `.md` 一套排版（`styles.css` 底部）。`markdownBlock()` 
 
 ## 配色只住在一个文件里
 
-`tokens.css`（先于 `styles.css` 加载，路由 `/synapse/tokens.css`）只放值：22 个 `--syn-*`、两组代码着色变量，明暗各一套，逐条抄自宿主的 `ui-theme/src/styles/design-platform.css`（`--syn-bubble` 对应 `--dsw-specific-bubble`，正是详情页问句气泡的底色）。
+`tokens.css`（先于所有样式表加载，路由 `/synapse/tokens.css`）只放值：22 个 `--syn-*`、两组代码着色变量，明暗各一套，逐条抄自宿主的 `ui-theme/src/styles/design-platform.css`（`--syn-bubble` 对应 `--dsw-specific-bubble`，正是详情页问句气泡的底色）。
 
-`styles.css` 里**不允许出现字面 hex**，否则两套主题会重新走散。改色只动 `tokens.css`；`index.js` 的 `page()` 与 `package.json` 的 `files` 都要带上这个文件。
+`styles/` 里**不允许出现字面 hex**，否则两套主题会重新走散。改色只动 `tokens.css`。
+
+样式表按 cascade 顺序切成七份，权威列表是 `host/apply.js` 的 `STYLE_SHEETS`（页面 `<link>` 与路由都由它生成，测试从 `index.js` 取同一份）：`base` → `chrome` → `cards` → `inspector` → `detail` → `markdown` → `dark`。**`dark` 必须最后**，它靠顺序压过前面的一切；插新表只能插在 `dark` 之前。
 
 ## 数据位置
 

@@ -2,7 +2,7 @@
 // Tests read them from disk either one at a time (when they evaluate a module)
 // or joined in load order (when they only grep for patterns).
 import { readFile } from 'node:fs/promises'
-import { APP_SCRIPTS } from '../index.js'
+import { APP_SCRIPTS, STYLE_SHEETS } from '../index.js'
 
 /** Load order, owned by the Host half: the page's script tags come from here. */
 export const APP_FILES = APP_SCRIPTS
@@ -30,5 +30,14 @@ export async function readAppSource() {
 /** The modules a test needs, joined: `pickApp('text', 'markdown')`. */
 export async function pickApp(...names) {
   const parts = await Promise.all(names.map(name => readAppFile(name)))
+  return parts.join('\n')
+}
+
+/** Every style sheet joined in cascade order (tokens first). */
+export async function readStyles() {
+  const parts = await Promise.all([
+    read('tokens.css'),
+    ...STYLE_SHEETS.map(name => read(`styles/${name}.css`)),
+  ])
   return parts.join('\n')
 }

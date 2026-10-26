@@ -3,7 +3,7 @@ import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { APP_SCRIPTS, apply } from '../index.js'
+import { APP_SCRIPTS, STYLE_SHEETS, apply } from '../index.js'
 
 /**
  * Drives the host half through the v0.1.7-rc.2 contracts it consumes: the
@@ -95,20 +95,24 @@ test('mounts its own routes on the existing DSH Web Server', async () => {
 
   apply(host.ctx, { dataFile: join(directory, 'state.json') })
 
-  // The canvas UI is served as one script per module, in load order.
+  // The canvas UI is served as one script per module, in load order, plus one
+  // style sheet per cascade section.
   const appRoutes = APP_SCRIPTS.map(name => ({ kind: 'exact', path: `/synapse/app/${name}.js` }))
+  const sheetRoutes = STYLE_SHEETS.map(name => ({ kind: 'exact', path: `/synapse/styles/${name}.css` }))
   assert.deepEqual(host.routes, [
     { kind: 'exact', path: '/synapse' },
     { kind: 'exact', path: '/synapse/' },
     ...appRoutes,
+    ...sheetRoutes,
     { kind: 'exact', path: '/synapse/tokens.css' },
-    { kind: 'exact', path: '/synapse/styles.css' },
     { kind: 'exact', path: '/synapse/deepseek-mark.svg' },
     { kind: 'prefix', path: '/synapse/api' },
   ])
-  // The page has to announce the same list, or a module silently never loads.
+  // The page has to announce the same lists, or a module silently never loads.
   const page = await host.respond('/synapse/')
   for (const name of APP_SCRIPTS) assert.match(page, new RegExp(`<script src="/synapse/app/${name}\\.js"></script>`))
+  for (const name of STYLE_SHEETS) assert.match(page, new RegExp(`<link rel="stylesheet" href="/synapse/styles/${name}\\.css">`))
+  assert.ok(page.indexOf('/synapse/tokens.css') < page.indexOf('/synapse/styles/base.css'), 'tokens first, then the sheets')
   assert.doesNotMatch(page, /\/synapse\/app\.js"/)
 })
 

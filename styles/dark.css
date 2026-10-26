@@ -1,0 +1,161 @@
+/* ── Dark theme: follows DSH's body[data-ds-dark-theme] via synapse:theme ── */
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="dark"] body { background: var(--syn-surface-2); color: var(--syn-ink); }
+/* Same two-layer relationship as the host in dark: the frame/rail take
+   bluish-900 and the conversation surface drops to bluish-950. */
+[data-theme="dark"] .synapse-shell { background: var(--syn-base); }
+[data-theme="dark"] .content-pane { background: var(--syn-panel); }
+[data-theme="dark"] .main-stage { background: transparent; }
+[data-theme="dark"] .canvas-header { border-bottom-color: var(--syn-line); background: var(--syn-panel); }
+[data-theme="dark"] .canvas-tabs button { background: transparent; color: var(--syn-ink-3); }
+[data-theme="dark"] .canvas-tabs button:hover { color: var(--syn-link); }
+[data-theme="dark"] .canvas-tabs[data-active="canvas"] button[data-action="show-canvas"],
+[data-theme="dark"] .canvas-tabs[data-active="thread"] button[data-action="show-thread"] { color: var(--syn-link); }
+[data-theme="dark"] .canvas-tabs[data-active="canvas"] button[data-action="show-canvas"]::after,
+[data-theme="dark"] .canvas-tabs[data-active="thread"] button[data-action="show-thread"]::after { background: var(--syn-link); }
+/* One surface per panel: the viewport must NOT lift above the frame, or the
+   top-left corner has nothing to cut against in dark (rail and surface would
+   both be bluish-900). */
+[data-theme="dark"] .canvas-viewport { background: var(--syn-panel); }
+[data-theme="dark"] .canvas-content { background: var(--syn-panel); }
+[data-theme="dark"] .connectors path { stroke: var(--syn-line-strong); }
+[data-theme="dark"] .connectors path.active-connector { stroke: var(--syn-accent); }
+[data-theme="dark"] .connectors .draft-connector { stroke: var(--syn-accent); }
+[data-theme="dark"] .thread-card { border-color: var(--syn-line); background: var(--syn-surface); box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 3px 10px rgba(0,0,0,.28); }
+[data-theme="dark"] .thread-card:hover { border-color: var(--syn-line-strong); box-shadow: 0 2px 6px rgba(0,0,0,.4), 0 10px 22px rgba(0,0,0,.34); }
+[data-theme="dark"] .thread-card.is-dragging { box-shadow: 0 10px 26px rgba(0,0,0,.5); }
+[data-theme="dark"] .thread-card.selected { box-shadow: 0 0 0 2px rgba(249,250,251,.26), 0 10px 22px rgba(0,0,0,.4); }
+[data-theme="dark"] .thread-card-expand { color: var(--syn-ink-4); }
+[data-theme="dark"] .thread-card-expand:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .thread-card.is-question { border-color: var(--syn-line-soft); background: var(--syn-surface-2); box-shadow: none; }
+[data-theme="dark"] .thread-card.is-question:hover { border-color: var(--syn-line); box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+[data-theme="dark"] .thread-card.is-question.selected { box-shadow: 0 0 0 2px rgba(249,250,251,.26); }
+[data-theme="dark"] .thread-card-kind { background: var(--syn-surface-3); color: var(--syn-ink-3); }
+[data-theme="dark"] .thread-card.is-answer .thread-card-kind { background: var(--syn-accent); color: var(--syn-on-accent); }
+[data-theme="dark"] .thread-card-actions button { color: var(--syn-ink-3); }
+[data-theme="dark"] .thread-card-actions button:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .graph-continue-button, [data-theme="dark"] .graph-fold-button, [data-theme="dark"] .graph-branch-button { border-color: var(--syn-line-strong); background: var(--syn-surface); color: var(--syn-ink); }
+[data-theme="dark"] .graph-continue-button:hover, [data-theme="dark"] .graph-fold-button:hover, [data-theme="dark"] .graph-branch-button:hover { border-color: var(--syn-line-strong); background: var(--syn-surface-3); }
+[data-theme="dark"] .graph-continue-button:focus-visible, [data-theme="dark"] .graph-fold-button:focus-visible, [data-theme="dark"] .graph-branch-button:focus-visible { outline-color: var(--syn-link); }
+[data-theme="dark"] .selection-followup { border-color: var(--syn-accent); background: var(--syn-accent); color: var(--syn-on-accent); box-shadow: 0 4px 12px rgba(0,0,0,.35); }
+[data-theme="dark"] .selection-followup:hover { border-color: var(--syn-accent-hover); background: var(--syn-accent-hover); color: var(--syn-on-accent); }
+[data-theme="dark"] .thread-card-text { color: var(--syn-ink-2); }
+[data-theme="dark"] .thread-card-text.is-question-text { color: var(--syn-ink); }
+[data-theme="dark"] .thread-card-text.is-empty, [data-theme="dark"] .thread-card-text.is-pending, [data-theme="dark"] .thread-card-streaming { color: var(--syn-ink-4); }
+[data-theme="dark"] .thread-card-text.is-error { color: var(--syn-danger); }
+[data-theme="dark"] .message-pending p { color: var(--syn-ink-2); }
+[data-theme="dark"] .card-inspector { border-left-color: var(--syn-line); background: var(--syn-surface); }
+[data-theme="dark"] .card-inspector-head, [data-theme="dark"] .card-inspector-actions { border-color: var(--syn-line); background: var(--syn-surface); }
+[data-theme="dark"] .card-inspector-meta { color: var(--syn-ink-4); }
+[data-theme="dark"] .card-inspector-meta span + span::before { color: var(--syn-ink-4); }
+[data-theme="dark"] .card-inspector-meta span:last-child { color: inherit; }
+[data-theme="dark"] .card-inspector-meta .card-inspector-error-status { color: var(--syn-danger); }
+[data-theme="dark"] .card-inspector-head h2 { color: var(--syn-ink); }
+[data-theme="dark"] .card-inspector-section { color: var(--syn-ink-4); }
+[data-theme="dark"] .md { color: var(--syn-ink-2); }
+[data-theme="dark"] .md h1, [data-theme="dark"] .md h2, [data-theme="dark"] .md h3, [data-theme="dark"] .md h4, [data-theme="dark"] .md h5, [data-theme="dark"] .md h6, [data-theme="dark"] .md strong { color: var(--syn-ink); }
+[data-theme="dark"] .md hr { background: var(--syn-line-strong); }
+[data-theme="dark"] .md blockquote { border-left-color: var(--syn-line-strong); color: var(--syn-ink-2); }
+[data-theme="dark"] .md code { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .md pre { border-color: var(--syn-line); background: var(--syn-code-bg); }
+[data-theme="dark"] .md pre code { background: transparent; }
+[data-theme="dark"] .md th, [data-theme="dark"] .md td { border-bottom-color: var(--syn-line); }
+[data-theme="dark"] .md th { background: var(--syn-surface-3); }
+[data-theme="dark"] .md .task-box { border-color: var(--syn-ink-4); }
+[data-theme="dark"] .md .task-box.is-checked { border-color: var(--syn-accent); background: var(--syn-accent); }
+[data-theme="dark"] .card-inspector-pending { color: var(--syn-ink-3); }
+[data-theme="dark"] .card-inspector-error { border-left-color: var(--syn-danger); color: var(--syn-danger); }
+[data-theme="dark"] .card-inspector-error strong { color: var(--syn-danger); }
+[data-theme="dark"] .card-inspector-process { border-top-color: var(--syn-line-soft); }
+[data-theme="dark"] .card-inspector-process .process-entry-fold { color: var(--syn-ink-2); }
+[data-theme="dark"] .card-inspector-process .process-entry-fold:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .card-inspector-close { color: var(--syn-ink-3); }
+[data-theme="dark"] .card-inspector-close:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .card-inspector-actions button { border-color: var(--syn-line); background: var(--syn-surface-3); color: var(--syn-ink-2); }
+[data-theme="dark"] .card-inspector-actions button:hover { border-color: var(--syn-line-strong); background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .card-inspector-actions .primary { border-color: var(--syn-accent); background: var(--syn-accent); color: var(--syn-on-accent); }
+[data-theme="dark"] .card-inspector-actions .primary:hover { border-color: var(--syn-accent-hover); background: var(--syn-accent-hover); }
+[data-theme="dark"] .draft-card { border-color: var(--syn-line-strong); box-shadow: 0 7px 19px rgba(0,0,0,.4); }
+[data-theme="dark"] .draft-card strong { color: var(--syn-ink); }
+[data-theme="dark"] .draft-quick-phrase, [data-theme="dark"] .draft-quick-phrase-add-button { border-color: var(--syn-line); background: var(--syn-surface-3); color: var(--syn-ink-2); }
+[data-theme="dark"] .draft-quick-phrase:hover, [data-theme="dark"] .draft-quick-phrase-add-button:hover { border-color: var(--syn-link); background: var(--syn-surface-2); color: var(--syn-link); }
+[data-theme="dark"] .draft-quick-phrase-editor-row input, [data-theme="dark"] .draft-quick-phrase-add input { border-color: var(--syn-line); background: var(--syn-surface); color: var(--syn-ink); }
+[data-theme="dark"] .draft-quick-phrase-editor-row button { border-color: var(--syn-line); background: var(--syn-surface-3); color: var(--syn-ink-2); }
+[data-theme="dark"] .draft-quick-phrase-editor-row button:hover { border-color: var(--syn-danger); background: var(--syn-danger-soft); color: var(--syn-danger); }
+[data-theme="dark"] .draft-quick-editor-close { color: var(--syn-ink-2); }
+[data-theme="dark"] .draft-quick-editor-close:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .draft-branch-form textarea { border-color: var(--syn-line); background: var(--syn-surface); color: var(--syn-ink); }
+[data-theme="dark"] .draft-actions button { background: var(--syn-surface); color: var(--syn-ink-2); }
+[data-theme="dark"] .draft-actions button.primary { background: var(--syn-accent); color: var(--syn-on-accent); }
+[data-theme="dark"] .header-action { background: transparent; color: var(--syn-ink-3); }
+[data-theme="dark"] .header-action:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .header-action.is-icon.active { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .zoom-meter { border-left-color: var(--syn-line); color: var(--syn-ink-3); }
+[data-theme="dark"] .zoom-meter-track { background: var(--syn-surface-3); }
+[data-theme="dark"] .zoom-meter-fill { background: var(--syn-ink-3); }
+/* The blanket `[data-theme="dark"] button` fill must not leak into the header's
+   icon buttons: the rail toggle is a disc only on hover. */
+[data-theme="dark"] .rail-toggle { background: transparent; color: var(--syn-ink-2); }
+[data-theme="dark"] .rail-toggle:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .new-workspace { border-color: rgba(255,255,255,.12); background: var(--syn-surface); color: var(--syn-ink); }
+[data-theme="dark"] .new-workspace:hover { border-color: rgba(255,255,255,.22); background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .workspace-label, [data-theme="dark"] .sidebar-heading { color: var(--syn-ink-3); }
+[data-theme="dark"] .workspace-trigger { border-color: var(--syn-line); background: var(--syn-surface); color: var(--syn-ink-2); }
+[data-theme="dark"] .workspace-trigger:hover, [data-theme="dark"] .workspace-trigger.open { border-color: var(--syn-line-strong); }
+[data-theme="dark"] .workspace-folder, [data-theme="dark"] .workspace-chevron { stroke: var(--syn-ink-3); }
+[data-theme="dark"] .workspace-menu { border-color: var(--syn-line); background: var(--syn-surface); box-shadow: 0 10px 28px rgba(0,0,0,.45); }
+[data-theme="dark"] .workspace-option { color: var(--syn-ink-2); }
+[data-theme="dark"] .workspace-option:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .workspace-option.selected { color: var(--syn-ink); }
+[data-theme="dark"] .tree-row { color: var(--syn-ink-2); }
+[data-theme="dark"] .tree-row:hover { background: var(--syn-surface-3); }
+[data-theme="dark"] .tree-row.active { background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] .tree-row i { color: var(--syn-ink-4); }
+[data-theme="dark"] .tree-empty { color: var(--syn-ink-4); }
+[data-theme="dark"] .brand::after { background: var(--syn-ink); color: var(--syn-surface-3); }
+[data-theme="dark"] .empty-canvas strong { color: var(--syn-ink); }
+[data-theme="dark"] .empty-canvas p { color: var(--syn-ink-3); }
+[data-theme="dark"] .note-empty { border-color: var(--syn-line); color: var(--syn-ink-3); }
+[data-theme="dark"] .status-message { border-color: var(--syn-danger-line); background: var(--syn-danger-soft); color: var(--syn-danger); box-shadow: 0 3px 10px rgba(0,0,0,.4); }
+[data-theme="dark"] .status-message button { color: var(--syn-danger); }
+[data-theme="dark"] .status-message button:hover { background: var(--syn-danger-soft); }
+
+[data-theme="dark"] .message-body { color: var(--syn-ink); }
+[data-theme="dark"] .message-user .message-body { background: var(--syn-bubble); }
+[data-theme="dark"] .message-error .message-body { color: var(--syn-danger); }
+[data-theme="dark"] .message-pending .message-body { color: var(--syn-ink-2); }
+[data-theme="dark"] .message-body h1, [data-theme="dark"] .message-body h2, [data-theme="dark"] .message-body h3 { color: var(--syn-ink); }
+[data-theme="dark"] .message-body blockquote { border-left-color: var(--syn-line); color: var(--syn-ink-3); }
+[data-theme="dark"] .message-body code { background: var(--syn-surface-3); color: var(--syn-ink-2); }
+[data-theme="dark"] .message-body pre { border-color: var(--syn-line); background: var(--syn-code-bg); }
+[data-theme="dark"] .message-body pre code { background: transparent; }
+[data-theme="dark"] .message-body th, [data-theme="dark"] .message-body td { border-color: var(--syn-line); }
+[data-theme="dark"] .message-body th { background: var(--syn-surface-3); }
+[data-theme="dark"] .message-branch { color: var(--syn-ink-4); }
+[data-theme="dark"] .message-branch:hover { background: var(--syn-surface-3); color: var(--syn-ink-2); }
+[data-theme="dark"] .message-fold { background: transparent; color: var(--syn-ink-3); }
+[data-theme="dark"] .message-fold:hover { background: transparent; color: var(--syn-ink); }
+[data-theme="dark"] .message-summary { color: inherit; }
+[data-theme="dark"] .message-streaming { color: var(--syn-ink-3) !important; }
+[data-theme="dark"] .streaming-dot { background: var(--syn-ink-4); }
+[data-theme="dark"] .process-records { border-top-color: var(--syn-line); }
+[data-theme="dark"] .process-records-fold { background: var(--syn-surface-3); color: var(--syn-ink-2); }
+[data-theme="dark"] .process-records-fold:hover { background: var(--syn-surface-2); color: var(--syn-link); }
+[data-theme="dark"] .process-count { background: var(--syn-surface-3); color: var(--syn-ink-3); }
+[data-theme="dark"] .process-entry { border-color: var(--syn-line); background: var(--syn-surface); }
+[data-theme="dark"] .process-entry-fold { color: var(--syn-ink-2); }
+[data-theme="dark"] .process-entry-fold:hover { background: var(--syn-surface-3); }
+[data-theme="dark"] .process-status-done { color: var(--syn-ok); }
+[data-theme="dark"] .process-status-pending { color: var(--syn-warn); }
+[data-theme="dark"] .process-status-error { color: var(--syn-danger); }
+[data-theme="dark"] .process-args, [data-theme="dark"] .process-result { background: var(--syn-surface-3); color: var(--syn-ink-2); }
+[data-theme="dark"] .process-error { background: var(--syn-danger-soft); color: var(--syn-danger); }
+[data-theme="dark"] .message-composer { border-color: var(--syn-line); background: var(--syn-surface); box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+[data-theme="dark"] .message-composer textarea { border: 0; background: transparent; color: var(--syn-ink); }
+[data-theme="dark"] .composer-send { background: var(--syn-link); color: var(--syn-on-accent); }
+[data-theme="dark"] .composer-send:disabled { background: var(--syn-surface-3); color: var(--syn-ink-4); }
+[data-theme="dark"] button { border-color: var(--syn-line); background: var(--syn-surface); color: var(--syn-ink-2); }
+[data-theme="dark"] button:hover { border-color: var(--syn-line-strong); background: var(--syn-surface-3); color: var(--syn-ink); }
+[data-theme="dark"] button.primary { border-color: var(--syn-accent); background: var(--syn-accent); color: var(--syn-on-accent); }
+[data-theme="dark"] button.primary:hover { border-color: var(--syn-accent-hover); background: var(--syn-accent-hover); color: var(--syn-on-accent); }
+@media (max-width: 760px) { [data-theme="dark"] .card-inspector { border-top-color: var(--syn-line); border-left: 0; } }

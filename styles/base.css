@@ -1,0 +1,97 @@
+/* Component styles. Every colour here is a `var(--syn-*)` from tokens.css
+   (loaded first, straight from the host app's design-platform.css) — no literal
+   hex belongs in this file, or the two themes drift apart again. */
+:root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--syn-ink); background: var(--syn-base); }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: var(--syn-surface-2); }
+button, select, textarea { font: inherit; }
+button { border: 1px solid var(--syn-line); border-radius: 6px; background: #fff; color: var(--syn-ink-2); cursor: pointer; min-height: 32px; padding: 0 11px; }
+button:hover { border-color: var(--syn-ink-4); background: var(--syn-surface-3); color: var(--syn-ink); }
+button:disabled { cursor: not-allowed; opacity: .5; }
+button.primary { border-color: var(--syn-ink); background: var(--syn-ink); color: var(--syn-on-accent); }
+button.primary:hover { border-color: var(--syn-accent-hover); background: var(--syn-accent-hover); color: var(--syn-on-accent); }
+/* ── Sidebar rail: motion tokens ───────────────────────────────────────────
+   The rail animates the shell's track width, which is a layout property, so the
+   sidebar's inner column is pinned to one width (`--sidebar-inner-width`) and the
+   aside clips it. Nothing inside re-wraps while the width travels, which is what
+   keeps this at frame rate — the label tree used to recompute an ellipsis per row
+   on every frame, and that is the jank the DSH sidebar shows.
+
+   Curves are sampled from the same second-order springs lifediary calibrates on
+   device (`spring(1.0, 600)` opening, `spring(1.0, 1200)` closing): clamped
+   progress, so neither overshoots — an overshooting width would clip past the
+   rail and snap back. `linear()` is declared second so a browser that cannot
+   parse it keeps the cubic-bezier above instead of dropping the transition. */
+.synapse-shell {
+  --sidebar-width: 280px;
+  --sidebar-gutter: 12px;
+  --sidebar-inner-width: 256px;
+  --sidebar-ease-open: cubic-bezier(0, 0, .2, 1);
+  --sidebar-ease-close: cubic-bezier(.16, 1, .3, 1);
+  height: 100vh;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  /* The rail and this background are one layer: the sidebar sits on it, the
+     content pane floats above it. A different colour here would read as a groove
+     around the card instead of a base. */
+  background: var(--syn-base);
+  transition: grid-template-columns 360ms var(--sidebar-ease-open);
+  transition: grid-template-columns 360ms linear(0, .132, .359, .563, .717, .822, .891, .934, .961, .977, .987, .992, .996, .997, .999);
+}
+.synapse-shell.sidebar-collapsed {
+  --sidebar-width: 56px;
+  transition: grid-template-columns 250ms var(--sidebar-ease-close);
+  transition: grid-template-columns 250ms linear(0, .163, .423, .637, .783, .875, .93, .961, .979, .989, .994, .997, .998);
+}
+/* The conversation surface itself. It starts at the very top of the frame: the
+   host's caption strip sits directly above, painted in the same sidebar fill, so
+   the surface's one rounded corner appears to tuck under the title bar. Any row
+   of our own above this would re-open the gap the host does not have (the host
+   only reserves `--dsh-windows-titlebar-height`, which is outside this iframe). */
+.content-pane {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px 0 0 0;
+  corner-shape: round;
+  background: var(--syn-panel);
+  /* Nothing separates the surface from the rail: no shadow, no border, no
+     elevation. In the host's Windows frame the sidebar/centre divider is
+     `border-right: none` and the centre column paints nothing of its own — the
+     only cues are the one-step colour difference and the rounded corner. Do not
+     add a line back here. */
+}
+
+.brand, .top-actions, .thread-card-head, .thread-meta, .detail-actions, .compare-title { display: flex; align-items: center; }
+/* Host geometry (ui-sidebar `SidebarRoot.module.css`, Windows branch):
+   `.logoRow { height: 40px; margin: 0; padding: 0 }`, the brand takes
+   `padding-left: 4px`, and the New Session bar sits `margin-top: 8px` under it.
+   The 60px/8px base row is the macOS variant — that pair put everything ~20px
+   lower than the app draws it. */
+.sidebar-brand-row { box-sizing: border-box; display: flex; align-items: center; gap: 8px; height: 40px; flex: none; padding: 0; overflow: hidden; }
+.brand { gap: 8px; min-width: 0; flex: 1; padding-left: 4px; }
+/* The mark is 31px wide and starts on the gutter, so its centre already sits on
+   the 56px rail's centre line — collapsing moves nothing vertically or in x. */
+.brand strong, .brand::after { transition: opacity 220ms cubic-bezier(.165,.84,.44,1) 80ms; }
+.brand::before { width: 31px; height: 26px; flex: none; content: ''; background: center / contain no-repeat url('/synapse/deepseek-mark.svg'); }
+/* The host nudges the brand group itself with `translateY(1px)` — a 10px chip
+   next to a 20px wordmark sits optically high against the wordmark's cap height,
+   so it takes the same nudge. */
+.brand::after { content: '非线性工作台'; flex: none; transform: translateY(1px); border-radius: 3px; background: var(--syn-ink); padding: 2px 5px; color: var(--syn-on-accent); font-size: 10px; font-weight: 400; line-height: 1; white-space: nowrap; }
+.brand-mark { display: none; }
+.brand strong { overflow: hidden; font-size: 20px; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
+.rail-toggle { display: inline-grid; width: 28px; height: 28px; min-height: 28px; flex: none; place-items: center; border: 0; border-radius: 50%; background: transparent; padding: 0; color: var(--syn-ink-3); }
+.rail-toggle:hover { border: 0; background: var(--syn-surface-3); color: var(--syn-ink-2); }
+/* The icon flips with a single overshoot so the stagger reads as "the rail turned",
+   not as a second, unrelated animation next to the width. */
+.rail-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; transition: transform 360ms cubic-bezier(.34,1.3,.64,1); }
+.sidebar-collapsed .rail-toggle svg { transform: rotate(180deg); }
+.rail-toggle { transition: transform 220ms cubic-bezier(.34,1.3,.64,1), background-color 150ms ease, color 150ms ease; }
+.rail-toggle:active { transform: scale(.94); transition: transform 120ms cubic-bezier(.16,1,.3,1), background-color 150ms ease, color 150ms ease; }
+.top-actions { gap: 10px; }

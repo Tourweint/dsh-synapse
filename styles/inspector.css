@@ -1,0 +1,92 @@
+/* ── Inspector: the reading column ────────────────────────────────────────
+   The drawer is the only place the full answer is read, so its typography is
+   set for prose, not for a preview: one measure, one rhythm (`.md` below), a
+   quiet header that states which turn this is, and a 8px hit area on the left
+   edge that resizes it. Width comes from app.js as an inline style (clamped
+   380–760px and to 78% of the pane); dragging the edge LEFT widens it. */
+.card-inspector { position: absolute; z-index: 30; top: 0; right: 0; bottom: 0; display: flex; width: var(--inspector-width, 460px); min-width: 380px; max-width: calc(100% - 48px); flex-direction: column; overflow: hidden; border-left: 1px solid var(--syn-line); background: var(--syn-surface); opacity: 1; transform: translateX(0); transition: transform 180ms cubic-bezier(.23,1,.32,1), opacity 150ms ease-out; }
+.card-inspector.is-opening, .card-inspector.is-closing { opacity: 0; transform: translateX(28px); }
+.card-inspector.is-resizing { transition: none; user-select: none; }
+/* The handle lives *inside* the drawer edge: the aside clips its children, so a
+   strip sticking out to the left would be half unhittable. 12px over the 20px
+   padding keeps the text clear of it. */
+.card-inspector-resizer { position: absolute; z-index: 3; top: 0; bottom: 0; left: 0; width: 12px; background: transparent; cursor: col-resize; touch-action: none; }
+.card-inspector-resizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: transparent; transition: background 130ms ease; }
+.card-inspector-resizer:hover::after, .card-inspector.is-resizing .card-inspector-resizer::after, .card-inspector-resizer:focus-visible::after { background: var(--syn-accent); }
+.card-inspector-resizer:focus-visible { outline: none; }
+.card-inspector-head { display: grid; flex: none; gap: 6px; padding: 16px 20px 14px; }
+.card-inspector-headrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.card-inspector-meta { display: flex; min-height: 28px; align-items: center; gap: 7px; color: var(--syn-ink-3); font-size: 11px; }
+.card-inspector-meta span + span::before { content: '·'; margin-right: 7px; color: var(--syn-ink-4); }
+.card-inspector-meta span:last-child { color: inherit; font-weight: inherit; }
+.card-inspector-meta .card-inspector-error-status { color: var(--syn-danger); font-weight: 650; }
+/* The card question is a user prompt and can be arbitrarily long (pasted
+   logs, injected skill catalogues). Clamp it so the drawer keeps its reading
+   area and action bar on screen; the full text stays reachable via `title`. */
+.card-inspector-head h2 { display: -webkit-box; margin: 0; overflow: hidden; color: var(--syn-ink); font-size: 16px; font-weight: 680; line-height: 1.5; letter-spacing: -.01em; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.card-inspector-close { display: grid; width: 32px; height: 32px; min-height: 32px; place-items: center; border: 0; border-radius: 50%; background: transparent; padding: 0; color: var(--syn-ink-3); }
+.card-inspector-close:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+.card-inspector-close:active, .card-inspector-actions button:active { transform: scale(.97); }
+.card-inspector-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.card-inspector-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 4px 20px 22px; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--syn-ink-4) transparent; }
+.card-inspector-scroll::-webkit-scrollbar { width: 8px; }
+.card-inspector-scroll::-webkit-scrollbar-track { background: transparent; }
+.card-inspector-scroll::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: var(--syn-line-strong); background-clip: padding-box; }
+.card-inspector-scroll::-webkit-scrollbar-thumb:hover { background: var(--syn-ink-4); background-clip: padding-box; }
+.card-inspector-section { margin: 6px 0 10px; color: var(--syn-ink-4); font-size: 10.5px; font-weight: 600; letter-spacing: .1em; }
+.card-inspector-answer { padding-bottom: 4px; }
+.card-inspector-pending { margin: 0; color: var(--syn-ink-3); font-size: 13px; font-style: italic; }
+.card-inspector-error { margin: 0; border-left: 3px solid var(--syn-danger); padding: 3px 0 3px 10px; color: var(--syn-danger); font-size: 13px; line-height: 1.65; }
+.card-inspector-error strong { display: block; color: var(--syn-danger); font-size: 12px; }
+.card-inspector-error p { margin: 5px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+/* 工具调用 is a quiet row list under the answer, not a fold that has to be
+   opened before anything exists: the drawer is where the turn's tool work is
+   read, so it is on screen from the start. */
+.card-inspector-process { margin-top: 20px; border-top: 1px solid var(--syn-line-soft); padding-top: 2px; }
+.card-inspector-process .card-inspector-section { margin: 10px 0 2px; }
+/* Each tool is a block, not a disclosure you have to go find: the header names
+   it and the payload follows in full. Nothing here is clipped or truncated —
+   long arguments and results wrap, and the drawer stays the only scroller. */
+.card-inspector-process .process-entry { margin-top: 0; border: 0; border-top: 1px solid var(--syn-line-soft); border-radius: 0; background: transparent; }
+.card-inspector-process .process-entry:last-child { padding-bottom: 2px; }
+.card-inspector-process .process-entry-fold { border-radius: 6px; padding: 7px 8px; font-size: 12px; }
+.card-inspector-process .process-entry-fold:hover { background: var(--syn-surface-2); }
+.card-inspector-process .process-entry-name { overflow: visible; color: var(--syn-ink); font-family: "Cascadia Code", Consolas, "Courier New", monospace; font-size: 11.5px; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
+.card-inspector-process .process-entry-body { display: grid; gap: 3px; padding: 0 8px 10px; }
+.card-inspector-process .process-args, .card-inspector-process .process-result, .card-inspector-process .process-error { overflow-wrap: anywhere; }
+.process-entry-label { margin: 5px 0 0; color: var(--syn-ink-4); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; }
+.process-entry-empty { margin: 3px 0 0; color: var(--syn-ink-4); font-size: 12px; font-style: italic; }
+.card-inspector-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; padding: 11px 14px; border-top: 1px solid var(--syn-line-soft); background: #fff; }
+.card-inspector-actions button { display: inline-flex; min-height: 30px; align-items: center; gap: 4px; padding: 0 9px; font-size: 11px; font-weight: 600; transition: transform 140ms ease-out, border-color 150ms ease, background 150ms ease, color 150ms ease; }
+.card-inspector-actions button svg { width: 13px; height: 13px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; }
+.card-inspector-actions .primary { border-color: var(--syn-accent); background: var(--syn-accent); color: var(--syn-on-accent); }
+.card-inspector-actions .primary:hover { border-color: var(--syn-accent-hover); background: var(--syn-accent-hover); }
+/* Drafts keep their own height: they carry a textarea and quick phrases, and
+   they are the one card surface that must stay selectable and typeable. */
+.draft-card { z-index: 2; width: 272px; height: auto; min-height: 196px; padding-bottom: 10px; border-style: dashed; border-color: var(--syn-ink-4); box-shadow: 0 7px 19px rgba(17,24,39,.1); cursor: default; user-select: text; -webkit-user-select: text; }
+.draft-card .thread-card-label { color: var(--syn-ink-3); }
+.draft-branch-form { display: grid; justify-items: center; gap: 10px; padding: 10px 12px 12px; }
+.draft-quick-phrases { display: flex; width: 100%; flex-wrap: wrap; gap: 6px; }
+.draft-quick-phrase, .draft-quick-phrase-add-button { min-height: 26px; border-color: var(--syn-line); border-radius: 999px; background: var(--syn-surface-2); padding: 0 9px; color: var(--syn-ink-2); font-size: 11px; font-weight: 600; }
+.draft-quick-phrase:hover, .draft-quick-phrase-add-button:hover { border-color: var(--syn-link); background: var(--syn-surface-3); color: var(--syn-accent-hover); }
+.draft-quick-phrase-add-button { display: grid; width: 26px; place-items: center; padding: 0; }
+.draft-quick-phrase-add-button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.6; }
+.draft-quick-editor { display: grid; width: 100%; gap: 7px; padding-bottom: 2px; }
+.draft-quick-editor-list { display: grid; gap: 5px; }
+.draft-quick-phrase-editor-row, .draft-quick-phrase-add { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 6px; }
+.draft-quick-phrase-editor-row input, .draft-quick-phrase-add input { min-width: 0; height: 28px; border: 1px solid var(--syn-line); border-radius: 5px; background: #fff; padding: 0 8px; color: var(--syn-ink); font-size: 11px; outline-color: var(--syn-accent); }
+.draft-quick-phrase-editor-row button, .draft-quick-phrase-add button { display: grid; width: 28px; min-height: 28px; place-items: center; border-radius: 5px; padding: 0; }
+.draft-quick-phrase-editor-row button { border-color: var(--syn-line); color: var(--syn-ink-2); }
+.draft-quick-phrase-editor-row button:hover { border-color: var(--syn-danger-line); background: var(--syn-danger-soft); color: var(--syn-danger); }
+.draft-quick-phrase-editor-row svg, .draft-quick-phrase-add svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.draft-quick-editor-close { justify-self: end; min-height: 26px; border: 0; background: transparent; padding: 0 6px; color: var(--syn-ink-2); font-size: 11px; }
+.draft-quick-editor-close:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+.draft-branch-form textarea { width: 100%; min-height: 104px; resize: vertical; border: 1px solid var(--syn-line); border-radius: 5px; padding: 8px 12px; color: var(--syn-ink); outline-color: var(--syn-accent); }
+.draft-actions { display: flex; width: 100%; justify-content: flex-end; gap: 8px; }
+.draft-actions button { display: grid; width: 32px; height: 32px; min-height: 32px; place-items: center; border-radius: 50%; background: #fff; padding: 0; color: var(--syn-ink-2); line-height: 0; }
+.draft-actions button.primary { border-color: var(--syn-accent); background: var(--syn-accent); color: var(--syn-on-accent); }
+.draft-actions svg { display: block; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.empty-canvas, .compare-empty { display: grid; align-content: center; justify-items: center; height: 100%; padding: 32px; text-align: center; }
+.empty-canvas strong, .compare-empty strong { color: var(--syn-ink); font-size: 16px; }
+.empty-canvas p, .compare-empty p { max-width: 460px; color: var(--syn-ink-2); font-size: 13px; line-height: 1.65; }
+.empty-canvas div { display: flex; gap: 8px; }

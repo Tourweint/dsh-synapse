@@ -1,0 +1,82 @@
+/* ── Detail: one conversation, read as a transcript ───────────────────────
+   Styled after the host's chat flow rather than after a set of cards: one
+   centred reading column, the user's turn as a right-aligned bubble
+   (`--syn-bubble`, `--dsw-radius-xl` = 20px, 10/16 inset) and the answer as
+   bare prose on the surface itself. There is deliberately no header block, no
+   per-message border/fill/shadow, avatar, role label or timestamp — the column
+   and the bubble are the structure, so the Q&A is never wrapped in a second
+   container. Session actions live in the top bar, not here. */
+.detail-view { box-sizing: border-box; width: 100%; height: 100%; min-height: 0; flex: 1; display: flex; flex-direction: column; background: transparent; }
+.detail-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 0 12px; overflow-anchor: none; scrollbar-width: thin; scrollbar-color: var(--syn-ink-4) transparent; }
+/* The column follows the host's width axis (`min(100% - 32px, 920px)` in the
+   embedded chat): wide on a wide window, and never touching the pane edges. */
+.detail-flow { display: flex; width: 100%; max-width: min(920px, calc(100% - 32px)); flex-direction: column; gap: 14px; margin: 0 auto; }
+.note-empty { padding: 34px 25px; border: 1px dashed var(--syn-ink-4); border-radius: 10px; color: var(--syn-ink-3); font-size: 13px; text-align: center; }
+.message { min-width: 0; }
+.message-body { color: var(--syn-ink); }
+.message-user { display: flex; justify-content: flex-end; margin-top: 6px; }
+/* Host bubble: min(70% of the column, 82%) wide, 14/22 text, 20px corners. */
+.message-user .message-body { box-sizing: border-box; max-width: 70%; border-radius: 20px; background: var(--syn-bubble); padding: 10px 16px; font-size: 14px; line-height: 22px; }
+/* Only the question is pre-wrapped: the answer is markdown and owns its own
+   block rhythm. */
+.message-user .message-body p { white-space: pre-wrap; }
+.message-user .message-body > :first-child { margin-top: 0; }
+.message-assistant .message-body { color: var(--syn-ink); }
+.message-error .message-body { color: var(--syn-danger); }
+.message-pending .message-body { color: var(--syn-ink-2); }
+/* Process records are one disclosure row (chevron + summary), not a card. */
+.message-process { display: flex; flex-direction: column; gap: 4px; }
+.message-fold { display: inline-flex; max-width: 100%; min-height: 24px; align-items: center; align-self: flex-start; gap: 6px; border: 0; border-radius: 6px; background: transparent; padding: 0 6px 0 0; color: var(--syn-ink-3); font-size: 12.5px; text-align: left; }
+/* The base `button:hover` paints a fill; the disclosure row must stay quiet, so
+   the hover state is declared here rather than inherited. */
+.message-fold:hover { border-color: transparent; background: transparent; color: var(--syn-ink); }
+.message-fold svg { width: 13px; height: 13px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; transition: transform .15s ease; }
+.message-process.expanded .message-fold svg { transform: rotate(90deg); }
+.message-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.message-process .message-body { margin-top: 2px; padding-left: 19px; color: var(--syn-ink-2); }
+.message-branch { display: inline-flex; min-height: 24px; align-items: center; gap: 4px; border: 0; border-radius: 6px; background: transparent; padding: 0 6px; color: var(--syn-ink-4); font-size: 11.5px; }
+.message-branch:hover { background: var(--syn-surface-3); color: var(--syn-ink-2); }
+.message-branch svg { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+/* Answer chrome sits below the body with a 6px offset, the host's pattern. */
+.message-actions { display: flex; margin-top: 10px; margin-left: -6px; }
+.message-streaming { display: inline-flex; align-items: center; gap: 6px; color: var(--syn-ink-3) !important; font-style: italic; }
+.streaming-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--syn-ink-4); animation: streaming-pulse 1.1s ease-in-out infinite; }
+@keyframes streaming-pulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+.process-records { margin-top: 10px; border-top: 1px dashed var(--syn-line-soft); padding-top: 8px; }
+.process-records-fold { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; border: 0; border-radius: 6px; background: var(--syn-surface-2); padding: 7px 10px; color: var(--syn-ink-2); font-size: 12px; font-weight: 620; text-align: left; }
+.process-records-fold:hover { background: var(--syn-surface-3); color: var(--syn-accent); }
+.process-count { display: grid; min-width: 20px; height: 20px; place-items: center; border-radius: 10px; background: var(--syn-line-soft); color: var(--syn-ink-2); font-size: 11px; font-weight: 720; }
+.process-entry { margin-top: 8px; border: 1px solid var(--syn-line-soft); border-radius: 6px; background: #fff; }
+.process-entry-fold { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: transparent; padding: 8px 10px; color: var(--syn-ink); font-size: 12px; text-align: left; }
+.process-entry-fold:hover { background: var(--syn-surface-2); }
+.process-entry-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.process-status { flex: none; font-size: 11px; }
+.process-status-done { color: var(--syn-ok); }
+.process-status-pending { color: var(--syn-warn); }
+.process-status-error { color: var(--syn-danger); }
+.process-entry-body { display: grid; gap: 8px; padding: 0 10px 10px; }
+.process-args, .process-result, .process-error { margin: 0; padding: 8px 10px; border-radius: 5px; background: var(--syn-surface-2); overflow: auto; color: var(--syn-ink); font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
+.process-error { background: var(--syn-danger-soft); color: var(--syn-danger); }
+/* The composer is one horizontal bar on the flow's axis, shaped like the host's
+   input card (`ui-conversation InputBar .card`): a rounded surface, an
+   elevation hairline + soft shadow, the draft inside it and the send control
+   parked at the bar's right end — not a textarea with a button next to it. */
+.message-composer { display: grid; width: 100%; max-width: min(920px, calc(100% - 32px)); grid-template-columns: minmax(0, 1fr) auto; box-sizing: border-box; flex: none; align-items: end; gap: 4px; margin: 0 auto 14px; padding: 4px 4px 4px 0; border: 1px solid var(--syn-line); border-radius: 20px; background: var(--syn-surface); box-shadow: 0 2px 10px rgba(15,23,42,.06); }
+.message-composer textarea { min-height: 38px; max-height: 132px; resize: none; border: 0; background: transparent; padding: 7px 4px 7px 16px; color: var(--syn-ink); font-size: 14px; line-height: 24px; outline: none; }
+.message-composer textarea::placeholder { color: var(--syn-ink-4); }
+.composer-send { display: grid; width: 30px; height: 30px; min-height: 30px; place-items: center; align-self: center; margin: 0 4px 0 0; border: 0; border-radius: 50%; background: var(--syn-link); padding: 0; color: var(--syn-on-accent); transition: filter 130ms ease, background 150ms ease; }
+.composer-send:hover { border: 0; background: var(--syn-link); color: var(--syn-on-accent); filter: brightness(1.1); }
+.composer-send:active { transform: scale(.94); }
+.composer-send:disabled { background: var(--syn-surface-3); color: var(--syn-ink-4); cursor: not-allowed; filter: none; }
+.composer-send svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.compare-view { height: 100%; overflow: auto; padding: 43px 38px; }
+.compare-view header { width: min(1050px, 100%); margin: 0 auto 24px; }
+.compare-columns { display: grid; width: min(1050px, 100%); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0 auto; }
+.compare-columns article { overflow: hidden; border: 1px solid var(--syn-line); border-radius: 7px; background: #fff; }
+.compare-title { gap: 8px; padding: 16px; border-bottom: 1px solid var(--syn-line-soft); }
+.compare-title .topic-dot { background: var(--thread-color, var(--syn-ink-2)); }
+.compare-title h2 { min-width: 0; flex: 1; margin: 0; overflow: hidden; color: var(--syn-ink); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.compare-title button { min-height: 27px; padding: 0 7px; font-size: 11px; }
+.compare-meta { margin: 12px 16px; color: var(--syn-ink-4); font-size: 11px; }
+.compare-notes { display: grid; gap: 1px; padding: 0 16px 16px; }
+.compare-notes p { margin: 0; padding: 11px 0; border-top: 1px solid var(--syn-surface-2); color: var(--syn-ink-2); font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
