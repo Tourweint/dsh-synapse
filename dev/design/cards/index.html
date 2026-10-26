@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Synapse 卡片设计 — 四版对照</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>卡片设计：四版对照</h1>
+      <p><strong>已落地（2026-10-26 第二轮）：</strong>没有采用下面任何一版「混合卡」。最终是一个 turn 两张卡：问卡（只放用户原话）在上、答卡（只放模型收尾正文）在下，各 252×88，展开 184，3→8 行，卡内不滚动。本页保留为选型记录；排版口径见 <a href="../inspector/index.html">侧边栏排版三版对照</a>。</p>
+      <p>对比前提：当时的现状是 310×276，一屏放得下 4 张；下面四版都在压到 1/3 尺寸以内的前提下保住「题干 + 答案痕迹 + 状态」。</p>
+    </div>
+    <div class="toolbar">
+      <button id="theme">切换深色</button>
+    </div>
+  </header>
+
+  <!-- ── 缩水的依据 ─────────────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head"><h2>现状</h2><span>310×276 · 一屏 4 张</span></div>
+    <p>现在一张卡同时承担：题干、来源、轮次、工具数、失败状态、完整答案（内部滚动）、三个文字按钮、三个边缘按钮、拖动手柄。真正需要在一眼扫过时读到的只有题干和「这轮说了什么」。</p>
+    <div class="stage">
+      <div class="stage-row">
+        <div class="stage-item">
+          <span class="stage-label">100%</span>
+          <article class="card v-now">
+            <div class="v-now-head"><span class="dot"></span><span class="title">为什么有选区时整页点击会失效？</span></div>
+            <div class="v-now-meta"><span>追问</span><span>· 第 2 轮</span><span class="count">工具 4</span></div>
+            <div class="v-now-body">
+              <p><strong>morphHoldsCaret 只该冻结光标所有者本身。</strong></p>
+              <p>写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判定成光标宿主，此后所有 render() 都是空操作。</p>
+              <p>于是点哪儿都没反应，但状态其实一直在变。</p>
+            </div>
+            <div class="v-now-foot">
+              <button title="查看完整会话"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/><path d="M6.2 14v-3.6a1.8 1.8 0 0 1 3.6 0V14"/></svg>详情</button>
+              <button title="在 DSH 中打开"><svg viewBox="0 0 16 16"><path d="M7 3.5H4.5A1.5 1.5 0 0 0 3 5v6.5A1.5 1.5 0 0 0 4.5 13H11a1.5 1.5 0 0 0 1.5-1.5V9"/><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg>DSH</button>
+              <button title="归档此会话"><svg viewBox="0 0 16 16"><path d="M2.5 5h11M5.5 7v5.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7"/><path d="M4 5 5 2.8a.7.7 0 0 1 .6-.4h4.8a.7.7 0 0 1 .6.4L12 5M6 9.5h4"/></svg>归档</button>
+            </div>
+          </article>
+        </div>
+        <div class="stage-item">
+          <span class="stage-label">60%（画布缩小后的实际观感）</span>
+          <div style="width:186px;height:166px">
+            <article class="card v-now scaled scale-60">
+              <div class="v-now-head"><span class="dot"></span><span class="title">为什么有选区时整页点击会失效？</span></div>
+              <div class="v-now-meta"><span>追问</span><span>· 第 2 轮</span><span class="count">工具 4</span></div>
+              <div class="v-now-body">
+                <p><strong>morphHoldsCaret 只该冻结光标所有者本身。</strong></p>
+                <p>写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判定成光标宿主，此后所有 render() 都是空操作。</p>
+                <p>于是点哪儿都没反应，但状态其实一直在变。</p>
+              </div>
+              <div class="v-now-foot">
+                <button>详情</button><button>DSH</button><button>归档</button>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── A ─────────────────────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head"><h2>A · 标题胶囊</h2><span>232×46 · 一屏约 14 张</span></div>
+    <p>只留题干。答案完全不预览——一张卡在 46px 里只能可靠传达一件事，就是「这一轮问了什么」。适合当整张图是<strong>结构视图</strong>时用：先看清分支骨架，再点开看内容。</p>
+    <ul>
+      <li>失败 / 生成中 / 工具数用<b>右侧一个点或数字</b>表示，不占行高。</li>
+      <li>悬停时右侧出现 ⋯（详情 / DSH / 归档），卡片右上角不再有常驻按钮。</li>
+      <li>拖动手柄消失，整张卡拖动（卡片已足够小，不会再挡住正文选择）。</li>
+    </ul>
+    <div class="stage">
+      <div class="stage-row">
+        <div class="stage-item"><span class="stage-label">默认</span>
+          <article class="card v-a"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="state-dot"></span></span>
+            <div class="actions"><button title="详情"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" /></svg></button></div>
+          </article>
+        </div>
+        <div class="stage-item"><span class="stage-label">生成中 + 工具 4</span>
+          <article class="card v-a"><span class="dot"></span><p class="title">补间层为什么不能重建兄弟节点</p><span class="count">4</span></article>
+        </div>
+        <div class="stage-item"><span class="stage-label">失败</span>
+          <article class="card v-a"><span class="dot"></span><p class="title">迁移 v3 工具卡为什么丢了状态</p><span class="state-slot"><span class="state-dot error"></span></span></article>
+        </div>
+        <div class="stage-item"><span class="stage-label">选中 + 悬停</span>
+          <article class="card v-a selected force-hover"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="state-dot"></span></span>
+            <div class="actions">
+              <button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button>
+              <button title="DSH"><svg viewBox="0 0 16 16"><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg></button>
+              <button title="归档"><svg viewBox="0 0 16 16"><path d="M2.5 5h11M5.5 7v5.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7"/></svg></button>
+            </div>
+            <button class="edge plus" title="追问"><svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></button>
+          </article>
+        </div>
+        <div class="stage-item"><span class="stage-label">60%</span><div style="width:140px;height:28px"><article class="card v-a scaled scale-60"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></article></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── B ─────────────────────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head"><h2>B · 两行摘要</h2><span>250×92 · 一屏约 8 张</span></div>
+    <p>题干 + 两行答案（截断，不做内部滚动）。这是我推荐的一版：<strong>比现在小 2.4 倍面积</strong>，但扫一眼仍然知道这一轮答了什么，不用点开。答案的完整正文交给卡片点击后已有的右侧 inspector，滚动条从卡片里彻底消失。</p>
+    <ul>
+      <li>答案固定 clamp 2 行 → 卡片高度恒定，<code>placeConversationCards</code> 的碰撞/排布不用改逻辑，只改 <code>CARD_HEIGHT</code>。</li>
+      <li>「DSH 会话 / 追问 / 分支」的来由只剩<b>轮次号</b>：第 1 轮以上才显示 <code>2</code>，首轮不显示（首轮本来就长在左上角）。</li>
+      <li>底部那 37px 的文字按钮条被删掉，换成悬停浮出的 3 个 20px 图标。</li>
+    </ul>
+    <div class="stage">
+      <div class="stage-row">
+        <div class="stage-item"><span class="stage-label">默认</span>
+          <article class="card v-b">
+            <div class="v-b-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div>
+            <p class="body two">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p>
+          </article>
+        </div>
+        <div class="stage-item"><span class="stage-label">悬停：动作浮出</span>
+          <article class="card v-b force-hover">
+            <div class="v-b-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div>
+            <p class="body two">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p>
+            <div class="actions">
+              <button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button>
+              <button title="DSH"><svg viewBox="0 0 16 16"><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg></button>
+              <button title="归档"><svg viewBox="0 0 16 16"><path d="M2.5 5h11M5.5 7v5.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7"/></svg></button>
+            </div>
+            <button class="edge plus" title="追问"><svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></button>
+          </article>
+        </div>
+        <div class="stage-item"><span class="stage-label">第 2 轮 + 工具 4</span>
+          <article class="card v-b">
+            <div class="v-b-head"><span class="dot"></span><p class="title">那把 contains 换成什么才对？</p><span class="turn">2</span><span class="count">4</span></div>
+            <p class="body two">只比较 node === document.activeElement，另外额外放行 contenteditable 宿主本身。祖先链一律不参与判断。</p>
+          </article>
+        </div>
+        <div class="stage-item"><span class="stage-label">失败</span>
+          <article class="card v-b">
+            <div class="v-b-head"><span class="dot"></span><p class="title">迁移 v3 工具卡为什么丢了状态</p><span class="fail">失败</span></div>
+            <p class="body two">旧卡片的 args 存在 message.extra 里，v3 迁移只搬了 text，工具调用记录因此变成空数组。</p>
+          </article>
+        </div>
+        <div class="stage-item"><span class="stage-label">60%</span><div style="width:150px;height:56px"><article class="card v-b scaled scale-60"><div class="v-b-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div><p class="body two">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主。</p></article></div></div>
+        <div class="stage-item"><span class="stage-label">40%（整图概览）</span><div style="width:100px;height:37px"><article class="card v-b scaled scale-40"><div class="v-b-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div><p class="body two">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦。</p></article></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── C ─────────────────────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head"><h2>C · 侧标密度版</h2><span>268×104 · 一屏约 7 张</span></div>
+    <p>B 的加强版：左侧一根 3px 主题色竖条给出「属于哪条对话线」，底部一行放轮次 / 工具数 / 失败，动作常驻但压到 35% 不透明度。<strong>信息最多，但最接近现在的观感</strong>，适合你希望「少点悬停」的情况。</p>
+    <ul>
+      <li>竖条颜色就是卡片原来的 <code>--thread-color</code>，同一会话的卡一眼归堆；连线仍在左侧。</li>
+      <li>底部动作不悬停也能点，只是很淡；悬停到 100%。</li>
+      <li>高度 104 而非 92，换来永久的 3 行答案 + 一行 meta。</li>
+    </ul>
+    <div class="stage">
+      <div class="stage-row">
+        <div class="stage-item"><span class="stage-label">默认</span>
+          <article class="card v-c">
+            <div class="v-c-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div>
+            <p class="body three">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作，表现为点啥都没用。</p>
+            <div class="v-c-foot"><span>第 2 轮</span><span class="count">4</span><span class="spacer"></span>
+              <div class="actions">
+                <button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button>
+                <button title="DSH"><svg viewBox="0 0 16 16"><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg></button>
+                <button title="归档"><svg viewBox="0 0 16 16"><path d="M2.5 5h11M5.5 7v5.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7"/></svg></button>
+              </div>
+            </div>
+          </article>
+        </div>
+        <div class="stage-item"><span class="stage-label">失败 + 折叠后续</span>
+          <article class="card v-c force-hover">
+            <div class="v-c-head"><span class="dot"></span><p class="title">迁移 v3 工具卡为什么丢了状态</p><span class="fail">失败</span></div>
+            <p class="body three">旧卡片的 args 存在 message.extra 里，v3 迁移只搬了 text，工具调用记录因此变成空数组，卡片上的「工具 N」永远不出现。</p>
+            <div class="v-c-foot"><span>第 1 轮</span><span class="spacer"></span>
+              <div class="actions"><button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button></div>
+            </div>
+            <button class="edge branch" title="在新对话中分支"><svg viewBox="0 0 16 16"><path d="M5 4v8M5 8h6"/><circle cx="12.4" cy="4" r="1.6"/><circle cx="12.4" cy="12" r="1.6"/></svg></button>
+          </article>
+        </div>
+        <div class="stage-item"><span class="stage-label">60%</span><div style="width:161px;height:62px"><article class="card v-c scaled scale-60"><div class="v-c-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div><p class="body three">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p><div class="v-c-foot"><span>第 2 轮</span><span class="count">4</span></div></article></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── D ─────────────────────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head"><h2>D · 可折叠</h2><span>236×40 / 236×112</span></div>
+    <p>默认收成 40px 的一条（和 A 同量级），点开是 3 行答案。把「要不要看答案」交给用户，是四版里<strong>唯一能做「一屏 20 张以上」</strong>的方案；代价是每次想看内容都要多点一次。</p>
+    <ul>
+      <li>折叠状态保留轮次号与状态点，所以骨架读起来仍然完整。</li>
+      <li>展开高度固定，不做动画高度测量，避免 <code>morphInto</code> 期间的抖动。</li>
+      <li>与现在的 <code>折叠后续对话</code>（收起子卡）是两件事，需要换个名字比如「收起内容」。</li>
+    </ul>
+    <div class="stage">
+      <div class="stage-row">
+        <div class="stage-item"><span class="stage-label">折叠</span>
+          <article class="card v-d">
+            <div class="v-d-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="turn">2</span><svg class="v-d-chevron" viewBox="0 0 16 16"><path d="M4 6.5 8 10.5 12 6.5"/></svg></span></div>
+            <div class="v-d-body"></div>
+          </article>
+        </div>
+        <div class="stage-item"><span class="stage-label">展开</span>
+          <article class="card v-d v-d-expanded force-hover">
+            <div class="v-d-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="turn">2</span><svg class="v-d-chevron" viewBox="0 0 16 16"><path d="M4 6.5 8 10.5 12 6.5"/></svg></span></div>
+            <div class="v-d-body"><p class="body three">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p></div>
+            <div class="actions">
+              <button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button>
+              <button title="DSH"><svg viewBox="0 0 16 16"><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg></button>
+              <button title="归档"><svg viewBox="0 0 16 16"><path d="M2.5 5h11M5.5 7v5.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7"/></svg></button>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 画布场景 ───────────────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head"><h2>放进画布看（以 B 为例）</h2><span>三张卡 + 一条分支线</span></div>
+    <p>尺寸缩小后连线也变短，整条对话线横向占用从 365px 降到约 300px（<code>draftPlacement</code> 里的 <code>parent.x + 365</code>）。下面按真实间距摆：卡片间距 42px。</p>
+    <div class="scene" style="height:270px">
+      <!-- x = parent.x + 365, y = 82 + lane × (CARD_HEIGHT + 42) -->
+      <svg viewBox="0 0 660 260" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M250 60 C 286 60, 329 60, 365 60" />
+        <path d="M250 60 C 286 60, 329 194, 365 194" />
+      </svg>
+      <article class="card v-b" style="left:0;top:14px">
+        <div class="v-b-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div>
+        <p class="body two">morphHoldsCaret 用 contains() 把整条祖先链都判成光标宿主，&lt;main&gt; 从此跳过所有补丁。</p>
+      </article>
+      <article class="card v-b" style="left:365px;top:14px">
+        <div class="v-b-head"><span class="dot"></span><p class="title">那把 contains 换成什么才对？</p><span class="turn">2</span></div>
+        <p class="body two">只比较 node === document.activeElement，另外额外放行 contenteditable 宿主本身。</p>
+      </article>
+      <article class="card v-b" style="left:365px;top:148px">
+        <div class="v-b-head"><span class="dot"></span><p class="title">为什么选区时不时自己消失？</p><span class="turn">分支</span></div>
+        <p class="body two">pointerup 之后 queueSelectionFollowup 会再渲染一次，选中节点被换掉，选区自然就没了。</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── 动作归属 ───────────────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head"><h2>动作归属</h2><span>四版共用</span></div>
+    <table class="rules">
+      <tr><th style="width:130px">能力</th><th style="width:180px">现在</th><th>建议</th></tr>
+      <tr><td><b>打开详情 / inspector</b></td><td>底部「详情」按钮 + 点卡片正文</td><td>点卡片正文（已有），hover 图标条第一项</td></tr>
+      <tr><td><b>在 DSH 打开</b></td><td>底部「DSH」文字按钮</td><td>hover 图标条，副位</td></tr>
+      <tr><td><b>归档会话</b></td><td>底部「归档」文字按钮</td><td>hover 图标条末位（危险动作，降权正好）</td></tr>
+      <tr><td><b>追问 / 分支 / 折叠后续</b></td><td>卡片右缘三个 24px 圆钮</td><td>保留在右缘，缩到 20px，仅悬停出现</td></tr>
+      <tr><td><b>拖动</b></td><td>顶部 28×15 「⋯」手柄</td><td>A/D 整卡拖；B/C 悬停时左上角 6 点手柄（不占常驻空间）</td></tr>
+      <tr><td><b>选中对比</b></td><td>底部「对比」按钮（auto 左对齐）</td><td>保持 hover 图标条首项，或按住 ⌘/Ctrl 点卡片</td></tr>
+    </table>
+  </section>
+
+  <!-- ── 尺寸预算 ───────────────────────────────────────────────────────── -->
+  <section class="section">
+    <div class="section-head"><h2>尺寸预算</h2><span>1440×900 画布可见区：约 1270×810</span></div>
+    <table class="rules">
+      <tr><th>版本</th><th>单卡</th><th>面积变化</th><th>一屏张数（估）</th><th>一眼可读</th></tr>
+      <tr><td>现状</td><td>310×276</td><td>—</td><td>9</td><td>题干 + 全文（滚动）</td></tr>
+      <tr><td><b>A</b></td><td>232×46</td><td>−87%</td><td>~66</td><td>题干</td></tr>
+      <tr><td><b>B</b></td><td>250×92</td><td>−73%</td><td>~36</td><td>题干 + 2 行答案</td></tr>
+      <tr><td><b>C</b></td><td>268×104</td><td>−67%</td><td>~28</td><td>题干 + 3 行答案 + meta</td></tr>
+      <tr><td><b>D</b></td><td>236×40 / 112</td><td>−88% / −69%</td><td>~80 / ~28</td><td>题干（展开后 + 3 行）</td></tr>
+    </table>
+    <p>排布相关常量要一起改：<code>CARD_WIDTH</code>/<code>CARD_HEIGHT</code>（app.js:47-48）、<code>draftPlacement</code> 的 <code>parent.x + 365</code>、<code>visibleCardIds</code> 的视口膨胀（不变）、<code>.thread-card</code> 的 <code>grid-template-rows</code>。</p>
+  </section>
+</div>
+
+<script>
+  const button = document.getElementById('theme')
+  button.addEventListener('click', () => {
+    const dark = document.documentElement.dataset.theme === 'dark'
+    if (dark) delete document.documentElement.dataset.theme
+    else document.documentElement.dataset.theme = 'dark'
+    button.textContent = dark ? '切换深色' : '切换浅色'
+  })
+</script>
+</body>
+</html>

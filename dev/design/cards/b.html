@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B · 两行摘要</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>B · 两行摘要 <span style="color:var(--syn-ink-4);font-size:13px;font-weight:400">250×92</span></h1>
+      <p>题干 + 两行答案（clamp，不滚动）。面积比现在小 73%，扫一眼就知道这轮答了什么；全文交给点开后已有的右侧 inspector。推荐这一版。</p>
+    </div>
+    <div class="toolbar"><a href="index.html"><button>回到对照页</button></a></div>
+  </header>
+
+  <div class="stage">
+    <div class="stage-row">
+      <div class="stage-item"><span class="stage-label">默认</span>
+        <article class="card v-b">
+          <div class="v-b-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div>
+          <p class="body two">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">悬停</span>
+        <article class="card v-b force-hover">
+          <div class="v-b-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div>
+          <p class="body two">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p>
+          <div class="actions">
+            <button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button>
+            <button title="DSH"><svg viewBox="0 0 16 16"><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg></button>
+            <button title="归档"><svg viewBox="0 0 16 16"><path d="M2.5 5h11M5.5 7v5.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7"/></svg></button>
+          </div>
+          <button class="edge plus" title="追问"><svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></button>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">第 2 轮 + 工具 4</span>
+        <article class="card v-b">
+          <div class="v-b-head"><span class="dot"></span><p class="title">那把 contains 换成什么才对？</p><span class="turn">2</span><span class="count">4</span></div>
+          <p class="body two">只比较 node === document.activeElement，另外额外放行 contenteditable 宿主本身。祖先链一律不参与判断。</p>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">失败</span>
+        <article class="card v-b">
+          <div class="v-b-head"><span class="dot"></span><p class="title">迁移 v3 工具卡为什么丢了状态</p><span class="fail">失败</span></div>
+          <p class="body two">旧卡片的 args 存在 message.extra 里，v3 迁移只搬了 text，工具调用记录因此变成空数组。</p>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">生成中</span>
+        <article class="card v-b">
+          <div class="v-b-head"><span class="dot"></span><p class="title">正在逐条核对 harness 的点击路径</p><span class="state-slot"><span class="state-dot pending"></span></span></div>
+          <p class="body two" style="font-style:italic">正在回复…</p>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">60%</span><div style="width:150px;height:56px"><article class="card v-b scaled scale-60"><div class="v-b-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div><p class="body two">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主。</p></article></div></div>
+      <div class="stage-item"><span class="stage-label">40%</span><div style="width:100px;height:37px"><article class="card v-b scaled scale-40"><div class="v-b-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div><p class="body two">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦。</p></article></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><h2>取舍</h2></div>
+    <ul>
+      <li><b>丢掉什么：</b>「DSH 会话 / 追问 / 分支」的来源标签、底部文字按钮、卡片内滚动条。前三者改由轮次号 + 连线表达，后者由 inspector 承担。</li>
+      <li><b>保住什么：</b>题干永远一行可见（不换行、省略号），答案永远两行，卡片高度恒定 92px，排布逻辑不用重写。</li>
+      <li><b>没解决：</b>代码块 / 表格在 clamp 里会被截成半行，但 100% 缩放下本来也读不了，点开更合理。</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

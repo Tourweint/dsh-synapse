@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>侧边栏排版 · 三版对照</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>侧边栏排版：三版对照 <small>同一段回答，460px</small></h1>
+      <p>这一段是真实的渲染结果（由 <code>app.js</code> 的 <code>markdownBlock()</code> 生成，不是手写 HTML），所以「分割线 / 引用 / 嵌套列表 / 任务列表 / 代码 / 表格」在三版里都是可交付的状态。差别只在字号、节奏、留白与装饰。</p>
+    </div>
+    <div class="toolbar"><button id="theme">深色</button></div>
+  </header>
+
+  <div class="columns">
+    <div class="column">
+      <span class="column-label">A · 阅读版 · 已实现</span>
+      <span class="column-note">13.5px / 1.78 · 块间距 12 · 标题只靠字号分级。最稳的一版，长文不累。</span>
+      <aside class="inspector" data-variant="a">
+        <div class="resizer"></div>
+        <header class="head"><div class="headrow"><div class="meta"><span>第 2 轮</span><span>工具 4</span></div><button class="close"><svg viewBox="0 0 16 16"><path d="m4.5 4.5 7 7m0-7-7 7"/></svg></button></div><h2 class="question">为什么有选区时整页点击会失效？</h2></header>
+        <div class="scroll"><p class="section">回答</p><article class="md"><h2>结论</h2><p><code>morphHoldsCaret</code> 只该冻结光标所有者本身。写成 <code>contains()</code> 之后，只要页面上有选区或输入框聚焦，<code>&lt;main&gt;</code> 就会被判定成光标宿主，此后所有 <code>render()</code> 变成空操作——表现就是「点啥都没用」。</p><blockquote><p>只比较 <code>node === document.activeElement</code>，另外额外放行 contenteditable 宿主本身。祖先链一律不参与判断。</p></blockquote><hr><h3>为什么会这样</h3><ol><li>卡片重渲染走 <code>morphInto</code>，不是 <code>innerHTML</code>；</li><li>每个节点先被匹配再原地打补丁；</li><li>匹配之前的「能否动这个节点」判断一旦过宽，整棵子树就被冻结。</li></ol><ul><li>冻结是静默的，没有报错</li><li>状态其实一直在变，只是没人画出来</li></ul><ul><li class="task-item"><span class="task-box is-checked" aria-hidden="true"></span>把判断收窄到单个节点</li><li class="task-item"><span class="task-box" aria-hidden="true"></span>补一条点击级测试（<code>dev/harness</code>）</li></ul><pre class="md-code" data-lang="js"><code>function morphHoldsCaret(node) {
+  if (node === document.activeElement) return true
+  const active = document.activeElement
+  return active instanceof HTMLElement
+    &amp;&amp; active.isContentEditable === true
+    &amp;&amp; active.contains(node)
+}</code></pre><table><thead><tr><th>层</th><th>位置</th><th>管什么</th></tr></thead><tbody><tr><td>Host 单测</td><td><code>test/*.test.js</code></td><td>存储、投影、路由</td></tr><tr><td>vm 切片</td><td><code>conversation-cards</code></td><td>纯函数</td></tr><tr><td>点击级</td><td><code>dev/harness</code></td><td>真实渲染 + 真实点击</td></tr></tbody></table><p>所以结论是：<strong>判断要窄，测试要真</strong>。详见 [开发流程](../../../docs/development.md)。</p></article>
+          <section class="process"><button class="process-fold"><span>过程记录</span><span class="process-count">4</span></button></section>
+        </div>
+        <footer class="actions"><button>继续追问</button><button>创建分支</button><button class="primary">在 DSH 中打开</button></footer>
+      </aside>
+    </div>
+
+    <div class="column">
+      <span class="column-label">B · 文档版</span>
+      <span class="column-note">15px / 1.85 · 每个标题上方一条分隔线 · 引用做成内嵌面板 · 代码带标题栏 · 表格隔行着色。结构最清楚，一屏信息少一些。</span>
+      <aside class="inspector" data-variant="b">
+        <div class="resizer"></div>
+        <header class="head"><div class="headrow"><div class="meta"><span>第 2 轮</span><span>工具 4</span></div><button class="close"><svg viewBox="0 0 16 16"><path d="m4.5 4.5 7 7m0-7-7 7"/></svg></button></div><h2 class="question">为什么有选区时整页点击会失效？</h2></header>
+        <div class="scroll"><p class="section">回答</p><article class="md"><h2>结论</h2><p><code>morphHoldsCaret</code> 只该冻结光标所有者本身。写成 <code>contains()</code> 之后，只要页面上有选区或输入框聚焦，<code>&lt;main&gt;</code> 就会被判定成光标宿主，此后所有 <code>render()</code> 变成空操作——表现就是「点啥都没用」。</p><blockquote><p>只比较 <code>node === document.activeElement</code>，另外额外放行 contenteditable 宿主本身。祖先链一律不参与判断。</p></blockquote><hr><h3>为什么会这样</h3><ol><li>卡片重渲染走 <code>morphInto</code>，不是 <code>innerHTML</code>；</li><li>每个节点先被匹配再原地打补丁；</li><li>匹配之前的「能否动这个节点」判断一旦过宽，整棵子树就被冻结。</li></ol><ul><li>冻结是静默的，没有报错</li><li>状态其实一直在变，只是没人画出来</li></ul><ul><li class="task-item"><span class="task-box is-checked" aria-hidden="true"></span>把判断收窄到单个节点</li><li class="task-item"><span class="task-box" aria-hidden="true"></span>补一条点击级测试（<code>dev/harness</code>）</li></ul><pre class="md-code" data-lang="js"><code>function morphHoldsCaret(node) {
+  if (node === document.activeElement) return true
+  const active = document.activeElement
+  return active instanceof HTMLElement
+    &amp;&amp; active.isContentEditable === true
+    &amp;&amp; active.contains(node)
+}</code></pre><table><thead><tr><th>层</th><th>位置</th><th>管什么</th></tr></thead><tbody><tr><td>Host 单测</td><td><code>test/*.test.js</code></td><td>存储、投影、路由</td></tr><tr><td>vm 切片</td><td><code>conversation-cards</code></td><td>纯函数</td></tr><tr><td>点击级</td><td><code>dev/harness</code></td><td>真实渲染 + 真实点击</td></tr></tbody></table><p>所以结论是：<strong>判断要窄，测试要真</strong>。详见 [开发流程](../../../docs/development.md)。</p></article>
+          <section class="process"><button class="process-fold"><span>过程记录</span><span class="process-count">4</span></button></section>
+        </div>
+        <footer class="actions"><button>继续追问</button><button>创建分支</button><button class="primary">在 DSH 中打开</button></footer>
+      </aside>
+    </div>
+
+    <div class="column">
+      <span class="column-label">C · 紧凑版</span>
+      <span class="column-note">13px / 1.64 · 块间距 8 · 引用降为弱化文字 · 代码与表格压紧。同样高度能看到更多内容，适合扫读长回答。</span>
+      <aside class="inspector" data-variant="c">
+        <div class="resizer"></div>
+        <header class="head"><div class="headrow"><div class="meta"><span>第 2 轮</span><span>工具 4</span></div><button class="close"><svg viewBox="0 0 16 16"><path d="m4.5 4.5 7 7m0-7-7 7"/></svg></button></div><h2 class="question">为什么有选区时整页点击会失效？</h2></header>
+        <div class="scroll"><p class="section">回答</p><article class="md"><h2>结论</h2><p><code>morphHoldsCaret</code> 只该冻结光标所有者本身。写成 <code>contains()</code> 之后，只要页面上有选区或输入框聚焦，<code>&lt;main&gt;</code> 就会被判定成光标宿主，此后所有 <code>render()</code> 变成空操作——表现就是「点啥都没用」。</p><blockquote><p>只比较 <code>node === document.activeElement</code>，另外额外放行 contenteditable 宿主本身。祖先链一律不参与判断。</p></blockquote><hr><h3>为什么会这样</h3><ol><li>卡片重渲染走 <code>morphInto</code>，不是 <code>innerHTML</code>；</li><li>每个节点先被匹配再原地打补丁；</li><li>匹配之前的「能否动这个节点」判断一旦过宽，整棵子树就被冻结。</li></ol><ul><li>冻结是静默的，没有报错</li><li>状态其实一直在变，只是没人画出来</li></ul><ul><li class="task-item"><span class="task-box is-checked" aria-hidden="true"></span>把判断收窄到单个节点</li><li class="task-item"><span class="task-box" aria-hidden="true"></span>补一条点击级测试（<code>dev/harness</code>）</li></ul><pre class="md-code" data-lang="js"><code>function morphHoldsCaret(node) {
+  if (node === document.activeElement) return true
+  const active = document.activeElement
+  return active instanceof HTMLElement
+    &amp;&amp; active.isContentEditable === true
+    &amp;&amp; active.contains(node)
+}</code></pre><table><thead><tr><th>层</th><th>位置</th><th>管什么</th></tr></thead><tbody><tr><td>Host 单测</td><td><code>test/*.test.js</code></td><td>存储、投影、路由</td></tr><tr><td>vm 切片</td><td><code>conversation-cards</code></td><td>纯函数</td></tr><tr><td>点击级</td><td><code>dev/harness</code></td><td>真实渲染 + 真实点击</td></tr></tbody></table><p>所以结论是：<strong>判断要窄，测试要真</strong>。详见 [开发流程](../../../docs/development.md)。</p></article>
+          <section class="process"><button class="process-fold"><span>过程记录</span><span class="process-count">4</span></button></section>
+        </div>
+        <footer class="actions"><button>继续追问</button><button>创建分支</button><button class="primary">在 DSH 中打开</button></footer>
+      </aside>
+    </div>
+  </div>
+
+  <div class="stage">
+    <h2 style="margin:0 0 10px;font-size:15px;font-weight:680">三版的差异只在这几行 CSS 里</h2>
+    <p class="note" style="margin-top:0">改一处即可切换整体口径（<code>styles.css</code> 的 <code>.md</code> 块）：字号与行高、块间距、标题阶梯、引用样式、代码块装饰、表格密度。三种都能和现有深浅色令牌共存，缩放到 380/720 也不会破版——分别见 <a href="a.html">A</a> / <a href="b.html">B</a> / <a href="c.html">C</a> 单页里的三档宽度。</p>
+  </div>
+</div>
+<script>
+  document.getElementById('theme').addEventListener('click', event => {
+    const dark = document.documentElement.dataset.theme === 'dark'
+    if (dark) delete document.documentElement.dataset.theme
+    else document.documentElement.dataset.theme = 'dark'
+    event.currentTarget.textContent = dark ? '深色' : '浅色'
+  })
+</script>
+</body>
+</html>

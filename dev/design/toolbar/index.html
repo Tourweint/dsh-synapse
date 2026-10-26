@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>顶栏右上角 · 三版对照</title>
+<link rel="stylesheet" href="../../../tokens.css">
+<link rel="stylesheet" href="../../../styles.css">
+<style>
+/* 对照页自己的排版。三版都在同一块 760px 的“对话面”里渲染，用的就是插件真实的
+   tokens.css / styles.css —— A 版即线上实现，B/C 只覆写右上角那一组控件。 */
+body { margin: 0; background: var(--syn-surface-2); color: var(--syn-ink); font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+.sheet { max-width: 1080px; margin: 0 auto; padding: 34px 28px 60px; }
+.sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+.sheet-head h1 { margin: 0 0 8px; font-size: 19px; font-weight: 650; }
+.sheet-head p { max-width: 720px; margin: 0; color: var(--syn-ink-2); font-size: 13px; line-height: 1.75; }
+.sheet-head button { min-height: 30px; border-radius: 7px; background: var(--syn-surface); padding: 0 12px; font-size: 12px; }
+.sheet-row { margin-bottom: 22px; padding: 16px 18px 18px; border: 1px solid var(--syn-line); border-radius: 14px; background: var(--syn-surface); }
+.sheet-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 650; }
+.sheet-label small { border-radius: 999px; background: var(--syn-surface-3); padding: 2px 8px; color: var(--syn-ink-2); font-size: 10px; font-weight: 600; }
+.sheet-note { margin: 6px 0 14px; color: var(--syn-ink-3); font-size: 12px; line-height: 1.7; }
+.sheet-strips { display: grid; gap: 12px; }
+.sheet-strip-label { color: var(--syn-ink-4); font-size: 10.5px; font-weight: 600; letter-spacing: .1em; }
+.sheet-stage { position: relative; width: 100%; overflow: hidden; border: 1px solid var(--syn-line-soft); border-radius: 14px 0 0 0; background: var(--syn-panel); }
+.sheet-stage .canvas-header { border-bottom-color: var(--syn-line); }
+
+/* ── B · 全图标：所有动作 26×26，缩放只剩轨道（百分比悬停才出现） ───────── */
+.v-b .header-action { width: 26px; justify-content: center; padding: 0; }
+.v-b .header-action > span { display: none; }
+.v-b .zoom-meter { margin-left: 5px; padding-left: 7px; border-left: 0; }
+.v-b .zoom-meter-value { width: 0; min-width: 0; opacity: 0; transition: opacity 130ms ease; }
+.v-b .zoom-meter:hover .zoom-meter-value { width: auto; min-width: 30px; opacity: 1; }
+
+/* ── C · 分段胶囊：三个动作装进一个胶囊，缩放是纯文字读数 ──────────────── */
+.v-c .header-actions { gap: 0; padding: 2px; border: 1px solid var(--syn-line); border-radius: 8px; background: var(--syn-surface-2); }
+.v-c .header-action { min-height: 22px; border-radius: 6px; padding: 0 7px; font-size: 11.5px; }
+.v-c .header-action:hover { background: var(--syn-surface); }
+.v-c .header-action.is-icon { width: 24px; }
+.v-c .zoom-meter { gap: 4px; margin-left: 4px; padding-left: 8px; border-left-color: var(--syn-line); font-size: 11px; }
+.v-c .zoom-meter-track { display: none; }
+.v-c .zoom-meter-value { min-width: 0; color: var(--syn-ink-2); }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header class="sheet-head">
+    <div>
+      <h1>顶栏右上角：三版对照</h1>
+      <p>同一个 26px 行高、同一套图标、同一块对话面。差别只在“信息多少”与“分组方式”：A 用文字换可读性，B 全部收成字形换宽度，C 把动作装进一个胶囊换秩序。缩放三种处理：A 轨道 + 数字，B 只有轨道（悬停才给数字），C 只有数字（点击复位 100%）。</p>
+    </div>
+    <button id="theme" type="button">深色</button>
+  </header>
+
+  <!-- A ------------------------------------------------------------------ -->
+  <section class="sheet-row v-a">
+    <div class="sheet-label">A · 频次分组 <small>已选 / 已实现</small></div>
+    <p class="sheet-note">常用动作留文字（整理 / 定位），偶尔用的排列收成字形，缩放是“细轨道 + 百分比”，前面一条发丝线把它和按钮分开。</p>
+    <div class="sheet-strips">
+      <div>
+        <div class="sheet-strip-label">地图</div>
+        <div class="sheet-stage">
+          <header class="canvas-header">
+            <button class="rail-toggle" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2.25"/><path d="M6 2v12"/></svg></button>
+            <nav class="canvas-tabs" data-active="canvas" aria-label="视图"><button type="button" data-action="show-canvas" aria-current="page">地图</button><button type="button" data-action="show-thread">详情</button></nav>
+            <div class="header-actions">
+              <button class="header-action" type="button"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span>整理</span></button>
+              <button class="header-action" type="button"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.5v2.6M8 11.9v2.6M1.5 8h2.6M11.9 8h2.6"/></svg><span>定位</span></button>
+              <button class="header-action is-icon" type="button" aria-label="排列"><svg viewBox="0 0 16 16"><rect x="2.5" y="2" width="6.5" height="5" rx="1"/><rect x="6.5" y="9" width="7" height="5" rx="1"/></svg></button>
+              <span class="zoom-meter"><span class="zoom-meter-track"><span class="zoom-meter-fill" style="width:53%"></span></span><span class="zoom-meter-value">100%</span></span>
+            </div>
+          </header>
+        </div>
+      </div>
+      <div>
+        <div class="sheet-strip-label">详情</div>
+        <div class="sheet-stage">
+          <header class="canvas-header">
+            <button class="rail-toggle" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2.25"/><path d="M6 2v12"/></svg></button>
+            <nav class="canvas-tabs" data-active="thread" aria-label="视图"><button type="button" data-action="show-canvas">地图</button><button type="button" data-action="show-thread" aria-current="page">详情</button></nav>
+            <div class="header-actions">
+              <button class="header-action" type="button"><svg viewBox="0 0 16 16"><path d="M7 3.5H4.5A1.5 1.5 0 0 0 3 5v6.5A1.5 1.5 0 0 0 4.5 13H11a1.5 1.5 0 0 0 1.5-1.5V9"/><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg><span>在 DSH 中打开</span></button>
+              <button class="header-action" type="button"><svg viewBox="0 0 16 16"><path d="M4.5 3v6a2.5 2.5 0 0 0 2.5 2.5H12"/><circle cx="4.5" cy="3" r="1.5"/><circle cx="11.5" cy="12" r="1.5"/></svg><span>创建分支</span></button>
+            </div>
+          </header>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B ------------------------------------------------------------------ -->
+  <section class="sheet-row v-b">
+    <div class="sheet-label">B · 全图标 <small>备选</small></div>
+    <p class="sheet-note">所有动作都收成 26×26 字形（悬停给说法），缩放只剩一条轨道——数字在悬停轨道时才淡入。最窄、最安静，代价是第一次用要认图标。</p>
+    <div class="sheet-strips">
+      <div>
+        <div class="sheet-strip-label">地图</div>
+        <div class="sheet-stage">
+          <header class="canvas-header">
+            <button class="rail-toggle" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2.25"/><path d="M6 2v12"/></svg></button>
+            <nav class="canvas-tabs" data-active="canvas" aria-label="视图"><button type="button" data-action="show-canvas" aria-current="page">地图</button><button type="button" data-action="show-thread">详情</button></nav>
+            <div class="header-actions">
+              <button class="header-action" type="button" aria-label="整理"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span>整理</span></button>
+              <button class="header-action" type="button" aria-label="排列"><svg viewBox="0 0 16 16"><rect x="2.5" y="2" width="6.5" height="5" rx="1"/><rect x="6.5" y="9" width="7" height="5" rx="1"/></svg><span>排列</span></button>
+              <button class="header-action" type="button" aria-label="定位"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.5v2.6M8 11.9v2.6M1.5 8h2.6M11.9 8h2.6"/></svg><span>定位</span></button>
+              <span class="zoom-meter"><span class="zoom-meter-track"><span class="zoom-meter-fill" style="width:53%"></span></span><span class="zoom-meter-value">100%</span></span>
+            </div>
+          </header>
+        </div>
+      </div>
+      <div>
+        <div class="sheet-strip-label">详情</div>
+        <div class="sheet-stage">
+          <header class="canvas-header">
+            <button class="rail-toggle" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2.25"/><path d="M6 2v12"/></svg></button>
+            <nav class="canvas-tabs" data-active="thread" aria-label="视图"><button type="button" data-action="show-canvas">地图</button><button type="button" data-action="show-thread" aria-current="page">详情</button></nav>
+            <div class="header-actions">
+              <button class="header-action" type="button" aria-label="在 DSH 中打开"><svg viewBox="0 0 16 16"><path d="M7 3.5H4.5A1.5 1.5 0 0 0 3 5v6.5A1.5 1.5 0 0 0 4.5 13H11a1.5 1.5 0 0 0 1.5-1.5V9"/><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg><span>在 DSH 中打开</span></button>
+              <button class="header-action" type="button" aria-label="创建分支"><svg viewBox="0 0 16 16"><path d="M4.5 3v6a2.5 2.5 0 0 0 2.5 2.5H12"/><circle cx="4.5" cy="3" r="1.5"/><circle cx="11.5" cy="12" r="1.5"/></svg><span>创建分支</span></button>
+            </div>
+          </header>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C ------------------------------------------------------------------ -->
+  <section class="sheet-row v-c">
+    <div class="sheet-label">C · 分段胶囊 <small>备选</small></div>
+    <p class="sheet-note">三个动作共享一个胶囊（一档底色 + 6px 内圆角），缩放退成纯数字“100%”（点一下回到 100%，不再画轨道）。最像系统控件，但“排列”这种低频项会显得和“整理”同等重要。</p>
+    <div class="sheet-strips">
+      <div>
+        <div class="sheet-strip-label">地图</div>
+        <div class="sheet-stage">
+          <header class="canvas-header">
+            <button class="rail-toggle" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2.25"/><path d="M6 2v12"/></svg></button>
+            <nav class="canvas-tabs" data-active="canvas" aria-label="视图"><button type="button" data-action="show-canvas" aria-current="page">地图</button><button type="button" data-action="show-thread">详情</button></nav>
+            <div class="header-actions">
+              <button class="header-action" type="button"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span>整理</span></button>
+              <button class="header-action is-icon" type="button" aria-label="排列"><svg viewBox="0 0 16 16"><rect x="2.5" y="2" width="6.5" height="5" rx="1"/><rect x="6.5" y="9" width="7" height="5" rx="1"/></svg></button>
+              <button class="header-action" type="button"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.5v2.6M8 11.9v2.6M1.5 8h2.6M11.9 8h2.6"/></svg><span>定位</span></button>
+              <span class="zoom-meter"><span class="zoom-meter-track"><span class="zoom-meter-fill" style="width:53%"></span></span><span class="zoom-meter-value">100%</span></span>
+            </div>
+          </header>
+        </div>
+      </div>
+      <div>
+        <div class="sheet-strip-label">详情</div>
+        <div class="sheet-stage">
+          <header class="canvas-header">
+            <button class="rail-toggle" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.75" y="1.75" width="12.5" height="12.5" rx="2.25"/><path d="M6 2v12"/></svg></button>
+            <nav class="canvas-tabs" data-active="thread" aria-label="视图"><button type="button" data-action="show-canvas">地图</button><button type="button" data-action="show-thread" aria-current="page">详情</button></nav>
+            <div class="header-actions">
+              <button class="header-action" type="button"><svg viewBox="0 0 16 16"><path d="M7 3.5H4.5A1.5 1.5 0 0 0 3 5v6.5A1.5 1.5 0 0 0 4.5 13H11a1.5 1.5 0 0 0 1.5-1.5V9"/><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg><span>在 DSH 中打开</span></button>
+              <button class="header-action" type="button"><svg viewBox="0 0 16 16"><path d="M4.5 3v6a2.5 2.5 0 0 0 2.5 2.5H12"/><circle cx="4.5" cy="3" r="1.5"/><circle cx="11.5" cy="12" r="1.5"/></svg><span>创建分支</span></button>
+            </div>
+          </header>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="sheet-note">三版的标签行完全一样（地图 / 详情、蓝色 2px 短线压住发丝线、悬停变蓝），统一的入口在 <code>styles.css</code> 的 <code>.header-actions</code>；改版只需要换那一组规则，标签与折叠按钮不动。</p>
+</div>
+<script>
+const root = document.documentElement
+document.getElementById('theme').addEventListener('click', () => {
+  const dark = root.dataset.theme !== 'dark'
+  if (dark) root.dataset.theme = 'dark'
+  else delete root.dataset.theme
+  document.getElementById('theme').textContent = dark ? '浅色' : '深色'
+})
+</script>
+</body>
+</html>

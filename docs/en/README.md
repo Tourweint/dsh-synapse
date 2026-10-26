@@ -92,16 +92,20 @@ Open the top **Session Map** switch after startup. Do not run two `dsh web` proc
 3. Open **Session Map** from the top switch.
 4. Click a card or sidebar session to synchronize the current session between the map and native chat.
 5. Use **Branch** on a completed answer to preserve an alternative path.
-6. Open **Details** from a card to inspect the complete conversation.
+6. Click a card's body to open the right-hand detail panel for that turn's full answer.
 7. Use **Open in DSH** or the top **Dialogue** switch to return to native chat.
 
 The canvas supports:
 
-- Panning and zooming up to 4×.
-- Dragging cards with persisted positions.
+- Panning and zooming up to 4×, with the zoom stepping over several frames instead of jumping to the target.
+- Dragging a card by pressing and holding anywhere on it (card bodies are not selectable, so a drag never turns into a text selection).
+- A turn is two cards: a **question** card holding only the message you sent, and an **answer** card holding only the model's closing prose (no tool calls, no tool results).
+- **排列** in the map toolbar picks where the question sits relative to its answer — **above / below / left / right** — by clicking one of four diagrams. Auto-layout and 整理 follow the choice, which is remembered on this machine.
+- Unfolding a card with the arrow in its corner: 3 lines go to 8, and whatever sits below moves out of the way.
+- The full answer lives in the detail panel, whose left edge can be dragged to resize it (380–760px, double-click to reset).
 - Expanding or collapsing descendant conversation subtrees.
 - One-click focus on the current session.
-- Smooth card scrolling and Markdown table rendering.
+- Markdown rendering in the detail panel: headings, lists, task lists, quotes, rules, fenced code, tables and links.
 - Folding tool calls and results into the related assistant answer by `callId`.
 
 ## Configuration

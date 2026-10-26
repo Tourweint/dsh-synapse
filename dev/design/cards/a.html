@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A · 标题胶囊</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>A · 标题胶囊 <span style="color:var(--syn-ink-4);font-size:13px;font-weight:400">232×46</span></h1>
+      <p>只留题干，答案不预览。整张图当结构图看时用这版：一屏约 14 张，分支骨架一眼到底。状态压成右侧一个点，动作全部收进悬停。</p>
+    </div>
+    <div class="toolbar"><a href="index.html"><button>回到对照页</button></a></div>
+  </header>
+
+  <div class="stage">
+    <div class="stage-row">
+      <div class="stage-item"><span class="stage-label">默认</span>
+        <article class="card v-a"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="state-dot"></span></span></article>
+      </div>
+      <div class="stage-item"><span class="stage-label">生成中</span>
+        <article class="card v-a"><span class="dot"></span><p class="title">正在把 106 个单测逐个跑一遍</p><span class="state-slot"><span class="state-dot pending"></span></span></article>
+      </div>
+      <div class="stage-item"><span class="stage-label">工具 4</span>
+        <article class="card v-a"><span class="dot"></span><p class="title">补间层为什么不能重建兄弟节点</p><span class="count">4</span></article>
+      </div>
+      <div class="stage-item"><span class="stage-label">失败</span>
+        <article class="card v-a"><span class="dot"></span><p class="title">迁移 v3 工具卡为什么丢了状态</p><span class="state-slot"><span class="state-dot error"></span></span></article>
+      </div>
+      <div class="stage-item"><span class="stage-label">选中 + 悬停</span>
+        <article class="card v-a selected force-hover"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="state-dot"></span></span>
+          <div class="actions">
+            <button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button>
+            <button title="DSH"><svg viewBox="0 0 16 16"><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg></button>
+            <button title="归档"><svg viewBox="0 0 16 16"><path d="M2.5 5h11M5.5 7v5.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7"/></svg></button>
+          </div>
+          <button class="edge plus" title="追问"><svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></button>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">60%</span><div style="width:140px;height:28px"><article class="card v-a scaled scale-60"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></article></div></div>
+      <div class="stage-item"><span class="stage-label">40%</span><div style="width:93px;height:18px"><article class="card v-a scaled scale-40"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></article></div></div>
+    </div>
+  </div>
+
+  <div class="stage" style="margin-top:20px">
+    <div class="stage-row" style="flex-direction:column;align-items:stretch">
+      <span class="stage-label">长题干的代价：46px 里只能读到前半句，全文靠 title / 详情补</span>
+      <article class="card v-a" style="width:100%;max-width:620px"><span class="dot"></span><p class="title">把 morphHoldsCaret 的 contains() 换成什么才不会让 main 变成光标宿主？</p><span class="state-slot"><span class="state-dot"></span></span></article>
+    </div>
+  </div>
+</div>
+</body>
+</html>

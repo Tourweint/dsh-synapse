@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D · 可折叠</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>D · 可折叠 <span style="color:var(--syn-ink-4);font-size:13px;font-weight:400">236×40 / 236×112</span></h1>
+      <p>默认 40px 一条，点开是 3 行答案。「要不要看内容」交给用户，是唯一能一屏 20 张以上的方案，代价是每次都要多点一下。</p>
+    </div>
+    <div class="toolbar"><a href="index.html"><button>回到对照页</button></a></div>
+  </header>
+
+  <div class="stage">
+    <div class="stage-row">
+      <div class="stage-item"><span class="stage-label">折叠 · 默认</span>
+        <article class="card v-d">
+          <div class="v-d-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="turn">2</span><svg class="v-d-chevron" viewBox="0 0 16 16"><path d="M4 6.5 8 10.5 12 6.5"/></svg></span></div>
+          <div class="v-d-body"></div>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">折叠 · 生成中</span>
+        <article class="card v-d">
+          <div class="v-d-head"><span class="dot"></span><p class="title">正在逐条核对 harness 的点击路径</p><span class="state-slot"><span class="state-dot pending"></span><svg class="v-d-chevron" viewBox="0 0 16 16"><path d="M4 6.5 8 10.5 12 6.5"/></svg></span></div>
+          <div class="v-d-body"></div>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">折叠 · 失败</span>
+        <article class="card v-d">
+          <div class="v-d-head"><span class="dot"></span><p class="title">迁移 v3 工具卡为什么丢了状态</p><span class="state-slot"><span class="state-dot error"></span><svg class="v-d-chevron" viewBox="0 0 16 16"><path d="M4 6.5 8 10.5 12 6.5"/></svg></span></div>
+          <div class="v-d-body"></div>
+        </article>
+      </div>
+    </div>
+
+    <div class="stage-row" style="margin-top:26px">
+      <div class="stage-item"><span class="stage-label">展开</span>
+        <article class="card v-d v-d-expanded">
+          <div class="v-d-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="turn">2</span><svg class="v-d-chevron" viewBox="0 0 16 16"><path d="M4 6.5 8 10.5 12 6.5"/></svg></span></div>
+          <div class="v-d-body"><p class="body three">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p></div>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">展开 + 悬停</span>
+        <article class="card v-d v-d-expanded force-hover">
+          <div class="v-d-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="turn">2</span><svg class="v-d-chevron" viewBox="0 0 16 16"><path d="M4 6.5 8 10.5 12 6.5"/></svg></span></div>
+          <div class="v-d-body"><p class="body three">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p></div>
+          <div class="actions">
+            <button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button>
+            <button title="DSH"><svg viewBox="0 0 16 16"><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg></button>
+            <button title="归档"><svg viewBox="0 0 16 16"><path d="M2.5 5h11M5.5 7v5.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7"/></svg></button>
+          </div>
+          <button class="edge plus" title="追问"><svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></button>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">折叠 60% / 40%</span>
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <div style="width:142px;height:24px"><article class="card v-d scaled scale-60"><div class="v-d-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="turn">2</span></span></div></article></div>
+          <div style="width:94px;height:16px"><article class="card v-d scaled scale-40"><div class="v-d-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p><span class="state-slot"><span class="turn">2</span></span></div></article></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><h2>取舍</h2></div>
+    <ul>
+      <li><b>命名冲突：</b>现有卡片右缘已经有一个「折叠后续对话」（隐藏子卡），这版需要另起名字，比如「收起内容 / 展开内容」。</li>
+      <li>展开高度固定 112px，不做高度测量动画，避免 <code>morphInto</code> 逐帧改高度导致的抖动与重排。</li>
+      <li>折叠态没有答案痕迹，遇到「这轮到底答了什么」必须点开；适合你已经很熟悉每张卡内容、只想看骨架的时候。</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

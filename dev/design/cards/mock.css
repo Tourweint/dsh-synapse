@@ -1,0 +1,223 @@
+/* Design study for the conversation card.
+   Tokens are copied from `styles.css` (the plugin's real palette, itself sampled
+   from DSH's design-platform.css) so a variant approved here can be moved into
+   `app.js` + `styles.css` without re-picking colours. */
+:root {
+  --syn-base: #f9fafb;
+  --syn-panel: #ffffff;
+  --syn-surface: #ffffff;
+  --syn-surface-2: #f9fafb;
+  --syn-surface-3: #ebedf2;
+  --syn-line: rgba(0, 0, 0, .1);
+  --syn-line-soft: rgba(0, 0, 0, .05);
+  --syn-line-strong: rgba(0, 0, 0, .18);
+  --syn-ink: #0f1115;
+  --syn-ink-2: #61666b;
+  --syn-ink-3: #81858c;
+  --syn-ink-4: #adb2b8;
+  --syn-accent: #0f1115;
+  --syn-on-accent: #ffffff;
+  --syn-link: #4176e6;
+  --syn-danger: #ec1313;
+  --syn-warn: #dd8629;
+  --syn-ok: #22c55e;
+  --syn-card-shadow: 0 1px 2px rgba(33, 48, 67, .06), 0 3px 10px rgba(33, 48, 67, .07);
+  --syn-card-shadow-hover: 0 2px 4px rgba(33, 48, 67, .08), 0 10px 24px rgba(33, 48, 67, .12);
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --syn-base: #1b1b1c;
+  --syn-panel: #151517;
+  --syn-surface: #232324;
+  --syn-surface-2: #1b1b1c;
+  --syn-surface-3: #353638;
+  --syn-line: rgba(255, 255, 255, .12);
+  --syn-line-soft: rgba(255, 255, 255, .06);
+  --syn-line-strong: rgba(255, 255, 255, .24);
+  --syn-ink: #f9fafb;
+  --syn-ink-2: #cfd3d6;
+  --syn-ink-3: #adb2b8;
+  --syn-ink-4: #81858c;
+  --syn-accent: #f9fafb;
+  --syn-on-accent: #151517;
+  --syn-link: #7aaaff;
+  --syn-card-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 3px 10px rgba(0, 0, 0, .3);
+  --syn-card-shadow-hover: 0 2px 6px rgba(0, 0, 0, .4), 0 12px 26px rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--syn-base);
+  color: var(--syn-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Gallery chrome ─────────────────────────────────────────────────────── */
+.page { width: min(1120px, 100%); margin: 0 auto; padding: 40px 32px 96px; }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--syn-line-soft); }
+.page-head h1 { margin: 0; font-size: 22px; font-weight: 680; letter-spacing: -.01em; }
+.page-head p { margin: 8px 0 0; max-width: 620px; color: var(--syn-ink-2); font-size: 13px; line-height: 1.7; }
+.toolbar { display: flex; align-items: center; gap: 10px; flex: none; }
+.toolbar label { display: flex; align-items: center; gap: 8px; color: var(--syn-ink-3); font-size: 12px; }
+.toolbar input[type="range"] { width: 128px; accent-color: var(--syn-accent); }
+.toolbar button {
+  min-height: 30px; border: 1px solid var(--syn-line); border-radius: 7px;
+  background: var(--syn-surface); color: var(--syn-ink-2); padding: 0 10px;
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+.toolbar button:hover { border-color: var(--syn-line-strong); color: var(--syn-ink); background: var(--syn-surface-3); }
+
+.section { margin-top: 46px; }
+.section-head { display: flex; align-items: baseline; gap: 10px; }
+.section-head h2 { margin: 0; font-size: 15px; font-weight: 680; }
+.section-head span { color: var(--syn-ink-4); font-size: 12px; }
+.section > p { margin: 8px 0 0; max-width: 760px; color: var(--syn-ink-2); font-size: 12.5px; line-height: 1.75; }
+.section ul { margin: 10px 0 0; padding-left: 18px; color: var(--syn-ink-2); font-size: 12.5px; line-height: 1.8; }
+.section ul b { color: var(--syn-ink); font-weight: 620; }
+
+/* The stage every card is judged on: the canvas void, not a white page. */
+.stage {
+  position: relative; margin-top: 14px; padding: 34px 28px; overflow: hidden;
+  border: 1px solid var(--syn-line-soft); border-radius: 12px;
+  background:
+    radial-gradient(circle at 1px 1px, var(--syn-line-soft) 1px, transparent 0) 0 0 / 18px 18px,
+    var(--syn-panel);
+}
+.stage-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 26px; }
+.stage-item { display: grid; gap: 8px; justify-items: start; }
+.stage-label { color: var(--syn-ink-4); font-size: 10.5px; letter-spacing: .04em; }
+.scaled { transform-origin: 0 0; }
+.scale-60 { transform: scale(.6); }
+.scale-40 { transform: scale(.4); }
+
+/* ── Shared card atoms ──────────────────────────────────────────────────── */
+.card {
+  position: relative;
+  border: 1px solid var(--syn-line);
+  border-radius: 9px;
+  background: var(--syn-surface);
+  box-shadow: var(--syn-card-shadow);
+  transition: box-shadow 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.card:hover, .card.force-hover { border-color: var(--syn-line-strong); box-shadow: var(--syn-card-shadow-hover); }
+.card.selected { box-shadow: 0 0 0 2px rgba(15, 17, 21, .16), var(--syn-card-shadow-hover); }
+[data-theme="dark"] .card.selected { box-shadow: 0 0 0 2px rgba(249, 250, 251, .28), var(--syn-card-shadow-hover); }
+
+.dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--syn-accent); }
+[data-theme="dark"] .dot { background: #8b8f95; }
+.title {
+  min-width: 0; margin: 0; overflow: hidden; color: var(--syn-ink);
+  font-size: 13px; font-weight: 660; line-height: 1.35;
+  text-overflow: ellipsis; white-space: nowrap; letter-spacing: -.002em;
+}
+.body {
+  display: -webkit-box; margin: 0; overflow: hidden; color: var(--syn-ink-2);
+  font-size: 11.5px; line-height: 1.62; overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+}
+.body.two { -webkit-line-clamp: 2; }
+.body.three { -webkit-line-clamp: 3; }
+.state-slot { flex: none; display: inline-flex; align-items: center; gap: 5px; color: var(--syn-ink-4); font-size: 10px; }
+.state-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--syn-ink-4); }
+.state-dot.pending { background: var(--syn-warn); }
+.state-dot.error { background: var(--syn-danger); }
+.turn { flex: none; color: var(--syn-ink-4); font-size: 10px; font-variant-numeric: tabular-nums; }
+.count {
+  display: inline-grid; height: 15px; min-width: 15px; place-items: center;
+  border-radius: 8px; background: var(--syn-surface-3); padding: 0 5px;
+  color: var(--syn-ink-3); font-size: 9.5px; font-weight: 650; font-variant-numeric: tabular-nums;
+}
+.fail { color: var(--syn-danger); font-size: 10px; font-weight: 650; }
+
+/* The hover toolbar: flat 20px icon buttons, no borders, no text. */
+.actions {
+  position: absolute; top: 6px; right: 6px; display: flex; gap: 1px;
+  border-radius: 7px; background: var(--syn-surface); padding: 2px;
+  opacity: 0; transform: translateY(-2px); pointer-events: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.card:hover .actions, .card.force-hover .actions { opacity: 1; transform: none; pointer-events: auto; }
+.actions button {
+  display: grid; width: 20px; height: 20px; min-height: 0; place-items: center;
+  border: 0; border-radius: 5px; background: transparent; padding: 0;
+  color: var(--syn-ink-3); cursor: pointer;
+}
+.actions button:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+.actions svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+
+/* Edge controls that ride the connector (kept from today's card, only smaller). */
+.edge {
+  position: absolute; right: -10px; display: grid; width: 20px; height: 20px;
+  place-items: center; border: 1px solid var(--syn-line); border-radius: 50%;
+  background: var(--syn-surface); color: var(--syn-ink-2); cursor: pointer;
+  opacity: 0; transition: opacity 120ms ease, border-color 120ms ease;
+}
+.card:hover .edge, .card.force-hover .edge { opacity: 1; }
+.edge:hover { border-color: var(--syn-ink); color: var(--syn-ink); }
+.edge svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.8; }
+.edge.plus { top: calc(50% - 10px); }
+.edge.fold { top: calc(50% - 10px); }
+.edge.branch { top: calc(50% + 12px); }
+
+/* ── A. 标题胶囊 232×46 ─────────────────────────────────────────────────── */
+.v-a { display: grid; width: 232px; height: 46px; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 0 11px; border-radius: 9px; }
+.v-a .title { font-size: 12.5px; font-weight: 620; }
+.v-a .actions { top: 50%; right: 5px; transform: translateY(-50%); }
+.v-a:hover .actions, .v-a.force-hover .actions { transform: translateY(-50%); }
+
+/* ── B. 两行摘要 250×92 ─────────────────────────────────────────────────── */
+.v-b { display: flex; width: 250px; height: 92px; flex-direction: column; gap: 5px; padding: 10px 12px 11px; }
+.v-b-head { display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 52px; }
+.v-b .body { flex: 1; min-height: 0; }
+
+/* ── C. 侧标密度版 268×104 ──────────────────────────────────────────────── */
+.v-c { display: flex; width: 268px; height: 104px; flex-direction: column; gap: 6px; overflow: hidden; padding: 10px 12px 9px 14px; }
+.v-c::before { content: ''; position: absolute; top: 10px; bottom: 10px; left: 0; width: 3px; border-radius: 0 3px 3px 0; background: var(--syn-accent); opacity: .85; }
+[data-theme="dark"] .v-c::before { background: #8b8f95; }
+.v-c-head { display: flex; align-items: center; gap: 7px; min-width: 0; padding-right: 54px; }
+.v-c .body { flex: 1; min-height: 0; }
+.v-c-foot { display: flex; align-items: center; gap: 6px; color: var(--syn-ink-4); font-size: 10px; }
+.v-c-foot .spacer { flex: 1; }
+.v-c-foot .actions { position: static; opacity: .35; transform: none; pointer-events: auto; padding: 0; background: none; }
+.v-c:hover .actions, .v-c.force-hover .actions { opacity: 1; }
+
+/* ── D. 可折叠 236×40 / 236×112 ─────────────────────────────────────────── */
+.v-d { display: flex; width: 236px; flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
+.v-d-head { display: grid; height: 40px; grid-template-columns: 7px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 0 11px; }
+.v-d-expanded .v-d-head { height: 38px; border-bottom: 1px solid var(--syn-line-soft); }
+.v-d-body { display: none; padding: 8px 12px 10px; }
+.v-d-expanded .v-d-body { display: block; }
+.v-d-expanded .v-d-body .body { -webkit-line-clamp: 3; }
+.v-d-chevron { width: 12px; height: 12px; fill: none; stroke: var(--syn-ink-4); stroke-linecap: round; stroke-width: 1.8; transition: transform 160ms ease; }
+.v-d-expanded .v-d-chevron { transform: rotate(180deg); }
+
+/* ── 现状：310×276（对照用） ────────────────────────────────────────────── */
+.v-now { display: grid; width: 310px; height: 276px; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: visible; border-radius: 7px; }
+.v-now-head { display: flex; align-items: center; gap: 8px; padding: 15px 12px 8px; }
+.v-now-meta { display: flex; align-items: center; gap: 7px; padding: 0 12px; color: var(--syn-ink-4); font-size: 10px; }
+.v-now-meta .count { display: inline-grid; margin-left: auto; }
+.v-now-body { margin: 10px 14px; overflow: hidden; color: var(--syn-ink-2); font-size: 12px; line-height: 1.58; }
+.v-now-body p { margin: 0 0 8px; }
+.v-now-body strong { color: var(--syn-ink); font-weight: 640; }
+.v-now-foot { display: flex; justify-content: flex-end; gap: 4px; padding: 7px; border-top: 1px solid var(--syn-line-soft); }
+.v-now-foot button { display: inline-flex; min-height: 26px; align-items: center; gap: 4px; border: 0; border-radius: 6px; background: transparent; padding: 0 7px; color: var(--syn-ink-2); font: inherit; font-size: 11px; }
+.v-now-foot button:hover { background: var(--syn-surface-3); color: var(--syn-ink); }
+.v-now-foot svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; }
+
+/* ── Canvas scene with connectors ───────────────────────────────────────── */
+.scene { position: relative; margin-top: 14px; height: 300px; }
+.scene svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.scene path { fill: none; stroke: var(--syn-ink-4); stroke-width: 1.5; }
+.scene path.active { stroke: var(--syn-accent); }
+.scene .card { position: absolute; }
+
+/* ── Rules table ────────────────────────────────────────────────────────── */
+table.rules { width: 100%; margin-top: 14px; border-collapse: collapse; font-size: 12.5px; }
+table.rules th, table.rules td { border-bottom: 1px solid var(--syn-line-soft); padding: 9px 10px; text-align: left; vertical-align: top; }
+table.rules th { color: var(--syn-ink-3); font-weight: 600; font-size: 11px; letter-spacing: .03em; }
+table.rules td { color: var(--syn-ink-2); }
+table.rules td b { color: var(--syn-ink); font-weight: 620; }
+code { border-radius: 4px; background: var(--syn-surface-3); padding: 1px 4px; color: var(--syn-ink); font-family: "Cascadia Code", Consolas, monospace; font-size: 11.5px; }

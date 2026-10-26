@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C · 侧标密度版</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>C · 侧标密度版 <span style="color:var(--syn-ink-4);font-size:13px;font-weight:400">268×104</span></h1>
+      <p>信息最全的一版：左侧主题色竖条 + 3 行答案 + 一行 meta，动作常驻但只有 35% 不透明度。如果你不想为了操作去悬停，选这版。</p>
+    </div>
+    <div class="toolbar"><a href="index.html"><button>回到对照页</button></a></div>
+  </header>
+
+  <div class="stage">
+    <div class="stage-row">
+      <div class="stage-item"><span class="stage-label">默认</span>
+        <article class="card v-c">
+          <div class="v-c-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div>
+          <p class="body three">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p>
+          <div class="v-c-foot"><span>第 2 轮</span><span class="count">4</span><span class="spacer"></span>
+            <div class="actions">
+              <button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button>
+              <button title="DSH"><svg viewBox="0 0 16 16"><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg></button>
+              <button title="归档"><svg viewBox="0 0 16 16"><path d="M2.5 5h11M5.5 7v5.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7"/></svg></button>
+            </div>
+          </div>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">悬停（动作到 100%）</span>
+        <article class="card v-c force-hover">
+          <div class="v-c-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div>
+          <p class="body three">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p>
+          <div class="v-c-foot"><span>第 2 轮</span><span class="count">4</span><span class="spacer"></span>
+            <div class="actions">
+              <button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button>
+              <button title="DSH"><svg viewBox="0 0 16 16"><path d="M9.5 3.5h3v3M12.4 3.6 7.5 8.5"/></svg></button>
+              <button title="归档"><svg viewBox="0 0 16 16"><path d="M2.5 5h11M5.5 7v5.5a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V7"/></svg></button>
+            </div>
+          </div>
+          <button class="edge branch" title="在新对话中分支"><svg viewBox="0 0 16 16"><path d="M5 4v8M5 8h6"/><circle cx="12.4" cy="4" r="1.6"/><circle cx="12.4" cy="12" r="1.6"/></svg></button>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">失败</span>
+        <article class="card v-c">
+          <div class="v-c-head"><span class="dot"></span><p class="title">迁移 v3 工具卡为什么丢了状态</p><span class="fail">失败</span></div>
+          <p class="body three">旧卡片的 args 存在 message.extra 里，v3 迁移只搬了 text，工具调用记录因此变成空数组，卡片上的「工具 N」永远不出现。</p>
+          <div class="v-c-foot"><span>第 1 轮</span><span class="spacer"></span>
+            <div class="actions"><button title="详情"><svg viewBox="0 0 16 16"><path d="M2 8.5 8 2.5l6 6V13.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5Z"/></svg></button></div>
+          </div>
+        </article>
+      </div>
+      <div class="stage-item"><span class="stage-label">60%</span><div style="width:161px;height:62px"><article class="card v-c scaled scale-60"><div class="v-c-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div><p class="body three">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主，此后所有 render() 都是空操作。</p><div class="v-c-foot"><span>第 2 轮</span><span class="count">4</span></div></article></div></div>
+      <div class="stage-item"><span class="stage-label">40%</span><div style="width:107px;height:42px"><article class="card v-c scaled scale-40"><div class="v-c-head"><span class="dot"></span><p class="title">为什么有选区时整页点击会失效？</p></div><p class="body three">morphHoldsCaret 只该冻结光标所有者本身。写成 contains() 之后，只要页面上有选区或输入框聚焦，&lt;main&gt; 就会被判成宿主。</p><div class="v-c-foot"><span>第 2 轮</span></div></article></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><h2>取舍</h2></div>
+    <ul>
+      <li><b>左侧竖条</b>用 <code>--thread-color</code>，同一会话的卡一眼归堆；竖条比圆点更容易在 40% 缩放下辨认。</li>
+      <li>动作常驻意味着卡片要留 3×20px 宽度，所以这版最宽（268）；换来的是一次点击命中率。</li>
+      <li>3 行答案仍是 clamp，长表格 / 代码块会被切，但底部 meta 行保证了「这轮用了多少工具」这类判断不用点开。</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>
