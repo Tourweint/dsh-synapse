@@ -69,6 +69,7 @@ corepack pnpm dsh web
 | [English guide](docs/en/README.md) | Installation, configuration, usage, cleanup, and limitations. |
 | [开发与发布](docs/development.md) | 本地验证、GitHub Actions、版本标签和 npm 发布。 |
 | [架构与边界](docs/architecture.md) | 会话归属、投影、数据存储和模型影响。 |
+| [AGENTS.md](AGENTS.md) | 给改动代码的人 / 代理的工作须知：调试入口、测试分层、以及那些"改了就坏"的约定。 |
 
 ## 与 DSH 的边界
 
