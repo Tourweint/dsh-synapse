@@ -196,6 +196,98 @@ test('skips the harness skill catalogue instead of projecting it as a question',
   assert.equal(thread.title, '现在这个插件是 0.4.2 还是 0.4.1')
 })
 
+test('skips the harness time-context note instead of projecting it as a turn', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-time-context-'))
+  const store = new WorkspaceStore(join(directory, 'state.json'))
+  await store.projectSession(hostSession({
+    id: 'time-context', header: { cwd: 'C:\\work\\canvas' }, inheritedEventCount: 0,
+    events: [
+      { type: 'user/message', seq: 1, time: 1, data: { content: [{ type: 'text', text: '继续' }], source: { kind: 'user' } } },
+      {
+        type: 'user/message', seq: 2, time: 2,
+        data: {
+          content: [{ type: 'text', text: 'Time sampled while preparing turn 1, step 2: 2026-10-26T14:41:09+08:00[Asia/Shanghai]\nElapsed since the preceding model-visible message: 31m 29s.' }],
+          source: { kind: 'time-context', form: 'snapshot' },
+        },
+      },
+      { type: 'assistant/message', seq: 3, time: 3, data: { turn: 1, step: 2, message: { content: [{ type: 'text', text: '继续做完了。' }] } } },
+    ],
+  }))
+
+  const [workspace] = await store.list()
+  const thread = (await store.get(workspace.id)).threads[0]
+  // Without the filter this became a card titled with that English sentence and
+  // split the turn in two.
+  assert.deepEqual(thread.messages.map(message => message.text), ['继续', '继续做完了。'])
+})
+
+test('keeps a tool call out of the assistant body and out of the answer', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-tool-body-'))
+  const store = new WorkspaceStore(join(directory, 'state.json'))
+  await store.projectSession(hostSession({
+    id: 'tool-body', header: { cwd: 'C:\\work\\canvas' }, inheritedEventCount: 0,
+    events: [
+      { type: 'user/message', seq: 1, time: 1, data: { content: [{ type: 'text', text: '跑一下测试' }], source: { kind: 'user' } } },
+      {
+        type: 'assistant/message', seq: 2, time: 2,
+        data: { turn: 1, step: 1, message: { content: [{ type: 'text', text: '我来跑。' }, { type: 'tool-call', name: 'bash', arguments: '{"cmd":"pnpm test"}' }] } },
+      },
+      // A step that only invokes a tool has no prose, so it is not a message.
+      {
+        type: 'assistant/message', seq: 3, time: 3,
+        data: { turn: 1, step: 2, message: { content: [{ type: 'tool-call', name: 'read', arguments: '{"path":"a.js"}' }] } },
+      },
+      { type: 'assistant/message', seq: 4, time: 4, data: { turn: 1, step: 3, message: { content: [{ type: 'text', text: '全部通过。' }] } } },
+    ],
+  }))
+
+  const [workspace] = await store.list()
+  const thread = (await store.get(workspace.id)).threads[0]
+  assert.deepEqual(thread.messages.map(message => message.text), ['跑一下测试', '我来跑。', '全部通过。'])
+  assert.doesNotMatch(JSON.stringify(thread.messages), /pnpm test|a\.js/)
+})
+
+test('re-projection demotes a stored tool-call preview instead of calling it the answer', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-tool-preview-'))
+  const dataFile = join(directory, 'state.json')
+  const at = '2026-01-01T00:00:00.000Z'
+  // The shape an older projection wrote: tool name + arguments stored as the
+  // assistant message text.
+  await writeFile(dataFile, JSON.stringify({
+    version: 5,
+    hiddenSessionIds: [],
+    workspaces: [{
+      id: 'w-1', kind: 'dsh', cwd: 'C:\\work\\canvas', title: 'DSH 任务', createdAt: at, updatedAt: at,
+      threads: [{
+        id: 't-1', title: 's', parentId: null, dshSessionId: 's-1', dshSessionTitle: null,
+        color: '#0f766e', position: { x: 86, y: 82 }, sourceSeedLength: null, createdAt: at, updatedAt: at,
+        messages: [
+          { id: 'm-1', kind: 'user', text: '跑测试', sourceSeq: 1, at, process: [] },
+          { id: 'm-2', kind: 'assistant', text: 'basher\n{"cmd":"pnpm test"}', sourceSeq: 2, at, process: [] },
+          { id: 'm-3', kind: 'assistant', text: '我来跑。 bash {"cmd":"pnpm test"}', sourceSeq: 3, at, process: [] },
+        ],
+      }],
+    }],
+  }))
+
+  const store = new WorkspaceStore(dataFile)
+  // Deferred projection writes are debounced, so read the clone the projection
+  // hands back rather than re-reading the file.
+  const thread = await store.projectSession(hostSession({
+    id: 's-1', header: { cwd: 'C:\\work\\canvas' }, inheritedEventCount: 0,
+    events: [
+      { type: 'user/message', seq: 1, time: 1, data: { content: [{ type: 'text', text: '跑测试' }], source: { kind: 'user' } } },
+      { type: 'assistant/message', seq: 2, time: 2, data: { turn: 1, step: 1, message: { content: [{ type: 'tool-call', name: 'bash', arguments: '{"cmd":"pnpm test"}' }] } } },
+      { type: 'assistant/message', seq: 3, time: 3, data: { turn: 1, step: 2, message: { content: [{ type: 'text', text: '我来跑。' }] } } },
+    ],
+  }))
+
+  // The tool-only step stops masquerading as an answer, and the polluted preview
+  // is rewritten with the prose the event actually carries.
+  assert.equal(thread.messages.find(message => message.sourceSeq === 2).kind, 'tool')
+  assert.equal(thread.messages.find(message => message.sourceSeq === 3).text, '我来跑。')
+})
+
 test('drops a stored skill catalogue card on load and rewrites the file', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-catalog-prune-'))
   const dataFile = join(directory, 'state.json')

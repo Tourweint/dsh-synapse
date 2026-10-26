@@ -15,6 +15,7 @@
     "client.js",
     "app.js",
     "deepseek-mark.svg",
+    "tokens.css",
     "styles.css",
     "docs",
     "cordis.patch.yml",

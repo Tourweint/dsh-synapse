@@ -1,0 +1,92 @@
+/* ── Palette: DSH's own design tokens ──────────────────────────────────────
+   Copied from the host app's source rather than sampled from a screenshot:
+   `reference/deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css`
+   (:root / body for light, body[data-ds-dark-theme] for dark). Names map 1:1 to
+   official aliases; the neutral scale is `--dsw-static-neutral-bluish-*`, the one
+   accent is `--dsw-static-deepseek-*`.
+
+   The rule that makes the plugin look like the app: the brand/accent colour is
+   near-BLACK (#0f1115, `--dsw-alias-brand-primary`), not blue. Blue is reserved
+   for links and business state (`--dsw-alias-link`), which is why a primary
+   button and a card highlight here are ink, and only a link is blue.
+
+   This sheet is loaded before styles.css and holds nothing but values: change a
+   colour here, never in a component rule. */
+:root {
+  --syn-base: #f9fafb;              /* bluish-50, specific-sidebar-fill: rail + frame */
+  --syn-panel: #ffffff;             /* 00, alias-bg-base: the conversation surface */
+  --syn-surface: #ffffff;           /* 00, raised layer (cards, inputs) */
+  --syn-surface-2: #f9fafb;         /* 50, soft fill: canvas void, code, table head */
+  --syn-surface-3: #ebedf2;         /* 100, hover / nav item active */
+  --syn-line: rgba(0, 0, 0, .1);    /* border-l2 */
+  --syn-line-soft: rgba(0, 0, 0, .04);  /* border-l1 */
+  --syn-line-strong: rgba(0, 0, 0, .16); /* border-l4 */
+  --syn-ink: #0f1115;               /* bluish-1000, label-primary */
+  --syn-ink-2: #61666b;             /* 700, label-secondary */
+  --syn-ink-3: #81858c;             /* 600, label-tertiary */
+  --syn-ink-4: #adb2b8;             /* 400, label-caption */
+  --syn-accent: #0f1115;            /* alias-brand-primary */
+  --syn-accent-hover: #43454a;      /* 750, button-primary-hover */
+  --syn-on-accent: #ffffff;         /* label-primary-foreground */
+  --syn-link: #4176e6;              /* deepseek-500, alias-link */
+  --syn-bubble: #edf3fe;            /* deepseek-50, specific-bubble: the user's own turn */
+  --syn-danger: #ec1313;            /* red-600 */
+  --syn-danger-soft: #fef2f2;       /* red-50 */
+  --syn-danger-line: #fee2e2;       /* red-100 */
+  --syn-warn: #dd8629;              /* amber-600, state-warn-label */
+  --syn-ok: #22c55e;                /* green-500 */
+
+  /* Code blocks. Not DSH tokens: a fenced block is an editor, and an editor in
+     the app's own greys has nothing to separate `const` from `"value"`. These
+     are JetBrains' default schemes verbatim — IntelliJ Light here, Darcula
+     under [data-theme="dark"] — so a block reads like the IDE next to it.
+     `--syn-code-bg` is the editor background (white / #2b2b2b), one notch
+     cooler than the page so the block still reads as an inset surface. */
+  --syn-code-bg: #f7f8fa;
+  --syn-code-ink: #1f1f23;          /* default identifier text */
+  --syn-tok-key: #0033b3;           /* keyword */
+  --syn-tok-str: #067d17;           /* string */
+  --syn-tok-num: #1750eb;           /* number / colour literal */
+  --syn-tok-com: #8c8c8c;           /* comment */
+  --syn-tok-fn: #00627a;            /* call */
+  --syn-tok-type: #871094;          /* class, type, primitive */
+  --syn-tok-tag: #0033b3;           /* markup tag name */
+  --syn-tok-attr: #174ad4;          /* markup attribute name */
+}
+[data-theme="dark"] {
+  --syn-base: #1b1b1c;              /* bluish-900, specific-sidebar-fill */
+  --syn-panel: #151517;             /* bluish-950, alias-bg-base */
+  --syn-surface: #232324;           /* 875, bg-layer-1 */
+  --syn-surface-2: #1b1b1c;         /* 900, sidebar fill / code block */
+  --syn-surface-3: #353638;         /* 800, hover */
+  --syn-line: rgba(255, 255, 255, .12);
+  --syn-line-soft: rgba(255, 255, 255, .06);
+  --syn-line-strong: rgba(255, 255, 255, .2);
+  --syn-ink: #f9fafb;               /* 50, label-primary */
+  --syn-ink-2: #cfd3d6;             /* 300 */
+  --syn-ink-3: #adb2b8;             /* 400 */
+  --syn-ink-4: #81858c;             /* 600 */
+  --syn-accent: #f9fafb;            /* alias-brand-primary */
+  --syn-accent-hover: #ebedf2;      /* 100 */
+  --syn-on-accent: #151517;         /* label-primary-foreground (dark flips) */
+  --syn-link: #7aaaff;              /* deepseek-400 */
+  --syn-bubble: #2c2c2e;            /* bluish-850, specific-bubble */
+  --syn-danger: #f25a5a;            /* red-400 */
+  --syn-danger-soft: #2b1a1c;
+  --syn-danger-line: #570c0c;       /* red-900 */
+  --syn-warn: #f59e0b;              /* amber-500 */
+  --syn-ok: #22c55e;
+
+  /* Darcula. Same eleven names as the light block above: `--syn-code-bg` is
+     Darcula's editor background, and the token colours are only legible on it. */
+  --syn-code-bg: #2b2b2b;
+  --syn-code-ink: #a9b7c6;
+  --syn-tok-key: #cc7832;
+  --syn-tok-str: #6a8759;
+  --syn-tok-num: #6897bb;
+  --syn-tok-com: #808080;
+  --syn-tok-fn: #ffc66d;
+  --syn-tok-type: #9876aa;
+  --syn-tok-tag: #e8bf6a;
+  --syn-tok-attr: #bababa;
+}

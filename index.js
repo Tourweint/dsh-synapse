@@ -26,7 +26,12 @@ const TOPIC_COLORS = ['#0f766e', '#2563eb', '#be123c', '#7c3aed', '#b45309']
 // catalogues). A canvas card must stand for a turn a person actually typed, so
 // an injected row is recognised by its structured `source.kind` instead of by
 // guessing at the prose (issue #31 / #23).
-const INJECTED_USER_SOURCE_KINDS = new Set(['skill-catalog'])
+// Harness-authored user messages. Only `kind: 'user'` is a turn the person took;
+// everything else (`runtime-context`, `time-context`, `skill-catalog`) is context
+// the harness splices in before a request. Projecting those as turns gave the
+// canvas cards whose title was a harness note — and, because they arrived between
+// a question and its answer, split real turns in two.
+const INJECTED_USER_SOURCE_KINDS = new Set(['skill-catalog', 'runtime-context', 'time-context'])
 // Stored projections keep no raw event to re-read, so the one-time cleanup
 // recognises a legacy catalogue card by the markers only that injection emits:
 // the `<system-reminder>` opener plus the `<available_skills>` index it wraps.
@@ -474,7 +479,31 @@ export class WorkspaceStore {
       return
     }
     const projection = projectableEvent(event)
-    if (projection === null || thread.messages.some(message => message.sourceSeq === event.seq)) return
+    const existing = thread.messages.find(message => message.sourceSeq === event.seq)
+    if (existing !== undefined) {
+      // A stored preview can predate a projection fix: assistant bodies used to
+      // swallow tool-call arguments and tool results, which turned a tool
+      // invocation into text that read like the model's answer. Re-projection
+      // (the mount-time replay) refreshes the preview in place instead of
+      // keeping the polluted one for the life of the file.
+      if (projection === null) {
+        // An assistant message with no prose at all is a tool-call step. It used
+        // to store the tool name and arguments as its text, which is how a tool
+        // invocation ended up reading like the model's answer. Demote it to a
+        // process record instead of deleting it, so the call history survives.
+        if (event.type === 'assistant/message' && existing.kind === 'assistant') existing.kind = 'tool'
+        return
+      }
+      if (existing.text !== projection.text) {
+        existing.text = projection.text
+        existing.length = projection.length
+        existing.truncated = projection.truncated
+        thread.updatedAt = new Date(event.time).toISOString()
+        workspace.updatedAt = thread.updatedAt
+      }
+      return
+    }
+    if (projection === null) return
     const at = new Date(event.time).toISOString()
     const message = {
       id: randomUUID(),
@@ -749,7 +778,10 @@ function eventKind(event) {
 function eventBody(event) {
   switch (event?.type) {
     case 'user/message': return contentText(event.data?.content)
-    case 'assistant/message': return contentText(event.data?.message?.content)
+    // Only prose. A model message also carries `tool-call` / `tool-result`
+    // blocks, and merging those into the body is what made a card show a tool
+    // name followed by its JSON arguments as if it were the answer.
+    case 'assistant/message': return proseText(event.data?.message?.content)
     case 'todo/write': return Array.isArray(event.data?.todos) ? event.data.todos.map(todo => `[${todo.status}] ${todo.content}`).join('\n') : ''
     case 'turn/end': {
       const reason = event.data?.reason
@@ -932,6 +964,15 @@ function isRuntimeContextMessage(message) {
   return message?.kind === 'user' && isRuntimeContextText(message.text)
 }
 
+/**
+ * The clock note the harness splices in before a request ("Time sampled while
+ * preparing turn 2, step 1: …"). It arrives as a `user/message`, so without this
+ * it became a canvas card whose title was that English sentence.
+ */
+function isTimeContextText(text) {
+  return typeof text === 'string' && text.trimStart().startsWith('Time sampled while preparing')
+}
+
 /** A harness-authored turn, identified by its structured provenance. */
 function isInjectedUserSource(source) {
   return typeof source?.kind === 'string' && INJECTED_USER_SOURCE_KINDS.has(source.kind)
@@ -952,7 +993,7 @@ function isSkillCatalogText(text) {
  * snapshots and skill catalogues were never a turn the user took.
  */
 function isInjectedUserMessage(message) {
-  return message?.kind === 'user' && (isRuntimeContextMessage(message) || isSkillCatalogText(message.text))
+  return message?.kind === 'user' && (isRuntimeContextMessage(message) || isTimeContextText(message.text) || isSkillCatalogText(message.text))
 }
 
 function contentText(content) {
@@ -963,6 +1004,16 @@ function contentText(content) {
     if (block?.type === 'tool-result') return contentText(block.content)
     return []
   }).filter(value => typeof value === 'string' && value.trim() !== '').join('\n')
+}
+
+/** The model's own words: text blocks only, never tool names or their output. */
+function proseText(content) {
+  if (!Array.isArray(content)) return ''
+  return content
+    .filter(block => block?.type === 'text')
+    .map(block => block.text)
+    .filter(value => typeof value === 'string' && value.trim() !== '')
+    .join('\n')
 }
 
 function titleFromText(text) {
@@ -1005,7 +1056,7 @@ function sendFile(res, contentType, body) {
 }
 
 function page() {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Synapse for DSH</title><link rel="stylesheet" href="/synapse/styles.css"></head><body><div id="app"></div><script src="/synapse/app.js"></script></body></html>`
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Synapse for DSH</title><link rel="stylesheet" href="/synapse/tokens.css"><link rel="stylesheet" href="/synapse/styles.css"></head><body><div id="app"></div><script src="/synapse/app.js"></script></body></html>`
 }
 
 /** Mount Synapse routes on the existing DSH Web Server. */
@@ -1129,6 +1180,7 @@ export function apply(ctx, config) {
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse', handler: (_req, res) => { res.writeHead(302, { location: '/synapse/' }); res.end() } }), 'synapse: redirect')
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse/', handler: (_req, res) => { sendFile(res, 'text/html; charset=utf-8', page()) } }), 'synapse: page')
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse/app.js', handler: async (_req, res) => { sendFile(res, 'text/javascript; charset=utf-8', await readFile(new URL('./app.js', import.meta.url), 'utf8')) } }), 'synapse: app')
+  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse/tokens.css', handler: async (_req, res) => { sendFile(res, 'text/css; charset=utf-8', await readFile(new URL('./tokens.css', import.meta.url), 'utf8')) } }), 'synapse: tokens')
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse/styles.css', handler: async (_req, res) => { sendFile(res, 'text/css; charset=utf-8', await readFile(new URL('./styles.css', import.meta.url), 'utf8')) } }), 'synapse: styles')
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse/deepseek-mark.svg', handler: async (_req, res) => { sendFile(res, 'image/svg+xml', await readFile(new URL('./deepseek-mark.svg', import.meta.url), 'utf8')) } }), 'synapse: DeepSeek mark')
   ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: '/synapse/api', handler: api }), 'synapse: api')

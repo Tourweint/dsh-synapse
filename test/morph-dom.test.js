@@ -95,7 +95,7 @@ class Element {
 async function loadMorph() {
   const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
   const start = source.indexOf('const MORPH_KEY_ATTRIBUTES')
-  const end = source.indexOf('function bindDragHandle')
+  const end = source.indexOf('function bindCardDrag')
   assert.ok(start !== -1 && end > start, 'the morph block is present in app.js')
   const context = {
     globalThis: {},
@@ -106,8 +106,8 @@ async function loadMorph() {
     window: {},
   }
   vm.createContext(context)
-  vm.runInContext(`${source.slice(start, end)};globalThis.morphChildren = morphChildren;globalThis.morphNode = morphNode`, context)
-  return { morphChildren: context.globalThis.morphChildren, morphNode: context.globalThis.morphNode, context, source }
+  vm.runInContext(`${source.slice(start, end)};globalThis.morphChildren = morphChildren;globalThis.morphNode = morphNode;globalThis.morphHoldsCaret = morphHoldsCaret`, context)
+  return { morphChildren: context.globalThis.morphChildren, morphNode: context.globalThis.morphNode, morphHoldsCaret: context.globalThis.morphHoldsCaret, context, source }
 }
 
 /**
@@ -201,6 +201,35 @@ test('keeps patching a composer that has focus', async () => {
 
   assert.equal(patched, live, 'the shell node is reused')
   assert.deepEqual(live.childNodes.map(node => node.tagName), ['P'])
+})
+
+test('does not freeze a focused button', async () => {
+  const { morphHoldsCaret, context } = await loadMorph()
+
+  // The view tabs: clicking 对话 focuses that button, and the next render must be
+  // able to repaint it as selected. Freezing every focused node stranded its
+  // class at the pre-click value, so both tabs lost their highlight.
+  const tab = new Element('button')
+  context.document.activeElement = tab
+  assert.equal(morphHoldsCaret(tab), false, 'a focused button holds no caret')
+  assert.equal(morphHoldsCaret(new Element('span')), false)
+})
+
+test('freezes the caret owner itself', async () => {
+  const { morphHoldsCaret, context } = await loadMorph()
+
+  for (const tag of ['textarea', 'input', 'select']) {
+    const field = new Element(tag)
+    context.document.activeElement = field
+    assert.equal(morphHoldsCaret(field), true, `a focused <${tag}> owns the caret`)
+    // Its ancestors are still patched — that is the shell test above.
+    const ancestor = new Element('div')
+    ancestor.append(field)
+    context.document.activeElement = ancestor
+    assert.equal(morphHoldsCaret(field), false)
+  }
+  context.document.activeElement = null
+  assert.equal(morphHoldsCaret(new Element('textarea')), false)
 })
 
 test('reuses the same nodes instead of rebuilding the container', async () => {

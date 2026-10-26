@@ -12,10 +12,10 @@ test('patches renders into the live tree instead of replacing the page', () => {
   assert.match(source, /function morphChildren\(from, to\)/)
   // The render entry point and the streaming answer both morph.
   assert.match(source, /morphInto\(app, `/)
-  assert.match(source, /morphInto\(answer, /)
+  assert.match(source, /morphInto\(summary, /)
   // No wholesale assignment may come back.
   assert.doesNotMatch(source, /app\.innerHTML\s*=/)
-  assert.doesNotMatch(source, /answer\.innerHTML\s*=/)
+  assert.doesNotMatch(source, /summary\.innerHTML\s*=/)
 })
 
 test('keys morph matching on the card and thread identities', () => {
@@ -32,5 +32,8 @@ test('leaves the caret owner untouched while morphing', () => {
   // Typing in the composer (or a drag handle) must survive a projection tick.
   assert.match(source, /function morphHoldsCaret\(node\)/)
   assert.match(source, /if \(morphHoldsCaret\(from\)\) return from/)
-  assert.match(source, /node === document\.activeElement/)
+  // Only text holders own a caret: a focused button must keep being patched, or
+  // the control the user just clicked keeps its previous class/aria state.
+  assert.match(source, /const ownsText = active\.isContentEditable === true/)
+  assert.match(source, /if \(node === active\) return true/)
 })
