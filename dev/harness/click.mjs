@@ -131,9 +131,9 @@ check('card click opens the inspector with a selection on the page', document.qu
 
 // 3. A draft must be removable, otherwise `canReplaceView()` keeps refusing
 //    every later render and the canvas looks frozen.
-await click(document.querySelector('[data-action="create-session"]'), 'new session')
+await click(document.querySelector('[data-action="create-session"]'), 'new card')
 const draftOpened = document.querySelector('.draft-card') !== null
-check('新会话 opens a draft', draftOpened)
+check('新建卡片 opens a draft', draftOpened)
 await click(document.querySelector('[data-action="cancel-draft"]'), 'cancel draft')
 check('取消 closes the draft', draftOpened && document.querySelector('.draft-card') === null)
 
@@ -146,6 +146,23 @@ check('返回画布 restores the cards', document.querySelector('.canvas-view') 
 // 5. The toolbar must still act on the canvas it just restored.
 await click(document.querySelector('[data-action="layout"]'), 'layout')
 check('整理 keeps the cards mounted', cards().length > 0)
+
+// 6. The rail collapse control sits in the map's own topbar. The desktop title
+//    bar already shows DSH's toggle, so a second one in the sidebar brand row
+//    read as the same button twice.
+const railToggle = document.querySelector('.topbar [data-action="toggle-sidebar"]')
+check('折叠按钮在地图 topbar 内', railToggle !== null && document.querySelector('.sidebar-brand-row [data-action="toggle-sidebar"]') === null)
+await click(railToggle, 'rail toggle')
+const shell = document.querySelector('.synapse-shell')
+const collapsed = shell.classList.contains('sidebar-collapsed')
+check('折叠按钮折叠地图侧边栏', collapsed)
+await click(document.querySelector('.topbar [data-action="toggle-sidebar"]'), 'rail toggle back')
+check('再点一次能展开', !document.querySelector('.synapse-shell').classList.contains('sidebar-collapsed'))
+
+// 7. The canvas entry point says what it does: it adds a card, it does not
+//    start a native conversation or leave the map.
+const newCard = document.querySelector('.sidebar .new-workspace')
+check('画布新建入口叫「新建卡片」', newCard !== null && newCard.textContent.trim() === '新建卡片', newCard?.textContent.trim())
 
 server.close()
 dom.window.close()

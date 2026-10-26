@@ -17,9 +17,9 @@ button.primary:hover { border-color: #000; background: #000; color: #fff; }
 .brand::after { content: '非线性工作台'; flex: none; border-radius: 3px; background: #111827; padding: 2px 5px; color: #fff; font-size: 10px; font-weight: 400; line-height: 1; white-space: nowrap; }
 .brand-mark { display: none; }
 .brand strong { font-size: 20px; font-weight: 600; letter-spacing: 0; }
-.sidebar-toggle { display: inline-grid; width: 28px; height: 28px; min-height: 28px; flex: none; place-items: center; border: 0; border-radius: 50%; background: transparent; padding: 0; color: #6b7280; }
-.sidebar-toggle:hover { border: 0; background: #eef0f2; color: #374151; }
-.sidebar-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; }
+.rail-toggle { display: inline-grid; width: 28px; height: 28px; min-height: 28px; flex: none; place-items: center; border: 0; border-radius: 50%; background: transparent; padding: 0; color: #6b7280; }
+.rail-toggle:hover { border: 0; background: #eef0f2; color: #374151; }
+.rail-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; }
 .top-actions { gap: 10px; }
 .canvas-controls { position: fixed; z-index: 80; top: 14px; right: 16px; display: flex; align-items: center; gap: 5px; }
 .canvas-controls button { min-width: 32px; padding: 0 8px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
@@ -48,8 +48,10 @@ button.primary:hover { border-color: #000; background: #000; color: #fff; }
 .main-stage { position: relative; grid-column: 2; min-width: 0; min-height: 0; overflow: hidden; background: #f5f7fa; }
 .sidebar-collapsed .sidebar { align-items: center; padding: 18px 10px 6px; }
 .sidebar-collapsed .sidebar-brand-row { width: 36px; height: 36px; margin-bottom: 12px; padding: 0; }
-.sidebar-collapsed .brand { display: none; }
-.sidebar-collapsed .sidebar-toggle { width: 36px; height: 36px; min-height: 36px; color: #111827; }
+/* The rail keeps the mark, not the wordmark or the tag: the collapse control now
+   lives in the topbar, so this is the only thing left in the 56px strip. */
+.sidebar-collapsed .brand { justify-content: center; }
+.sidebar-collapsed .brand strong, .sidebar-collapsed .brand::after { display: none; }
 .sidebar-collapsed .new-workspace { width: 36px; height: 36px; min-height: 36px; margin: 0 0 12px; border-color: transparent; background: transparent; padding: 0; }
 .sidebar-collapsed .new-workspace span, .sidebar-collapsed .workspace-label, .sidebar-collapsed .sidebar-heading, .sidebar-collapsed .thread-tree { display: none; }
 .status-message { position: absolute; z-index: 6; top: 12px; right: 16px; display: flex; align-items: center; gap: 10px; max-width: 400px; padding: 9px 10px 9px 13px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #991b1b; font-size: 12px; box-shadow: 0 3px 10px rgba(127,29,29,.12); }
@@ -371,8 +373,8 @@ button.primary:hover { border-color: #000; background: #000; color: #fff; }
 [data-theme="dark"] .draft-actions button { background: #1b1c1f; color: #a7adb5; }
 [data-theme="dark"] .draft-actions button.primary { background: #3478f6; color: #fff; }
 [data-theme="dark"] .canvas-controls span { color: #8f959e; }
-[data-theme="dark"] .sidebar-toggle { color: #a7adb5; }
-[data-theme="dark"] .sidebar-toggle:hover { background: #26282d; color: #e6e8eb; }
+[data-theme="dark"] .rail-toggle { color: #a7adb5; }
+[data-theme="dark"] .rail-toggle:hover { background: #26282d; color: #e6e8eb; }
 [data-theme="dark"] .new-workspace { border-color: rgba(255,255,255,.12); background: #1b1c1f; color: #e6e8eb; }
 [data-theme="dark"] .new-workspace:hover { border-color: rgba(255,255,255,.22); background: #222428; color: #fff; }
 [data-theme="dark"] .workspace-label, [data-theme="dark"] .sidebar-heading { color: #8f959e; }
