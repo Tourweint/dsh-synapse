@@ -281,15 +281,13 @@ export class WorkspaceStore {
       }
     } catch (error) {
       if (error?.code !== 'ENOENT') {
-        // A newer layout (v6 stopped persisting messages) or a truncated write
-        // must not take the whole canvas down: fall back to the pre-migration
-        // copy, which still carries the message index.
-        const restored = await restoreBackup(`${this.dataFile}.v5-backup`)
-        if (restored !== null) {
-          this.state = restored
-          await this.save()
-          return
-        }
+        // Never "repair" this file. An unreadable workspaces.json is the only
+        // copy of the canvas; restoring a backup over it (which an earlier
+        // revision did) both discarded whatever the file still held and silently
+        // rolled the map back to a snapshot of unknown age. Fail instead: the
+        // store stays unloaded, `ready` rejects, every mutation refuses to run,
+        // and the HTTP layer reports this exact message so the user learns which
+        // file to repair.
         throw new Error(`synapse: cannot read ${this.dataFile}: ${error.message}`)
       }
       this.state = { version: 5, hiddenSessionIds: [], workspaces: [] }
@@ -577,13 +575,6 @@ export class WorkspaceStore {
 class InputError extends Error {}
 class NotFoundError extends Error {}
 
-async function restoreBackup(file) {
-  try {
-    return normalizeState(JSON.parse(await readFile(file, 'utf8'))).state
-  } catch {
-    return null
-  }
-}
 function normalizeState(value) {
   let migrated = false
   let state
@@ -1141,7 +1132,11 @@ export function apply(ctx, config) {
       if (error instanceof InputError) return sendJson(res, 400, { error: error.message })
       if (error instanceof NotFoundError) return sendJson(res, 404, { error: error.message })
       ctx.logger.error(error instanceof Error ? error : new Error(String(error)))
-      return sendJson(res, 500, { error: 'Synapse 数据暂时不可用' })
+      // A store that cannot read its file carries the only actionable detail —
+      // the path. Passing it through beats a generic banner the user cannot act
+      // on, and it is the one failure the canvas must never paper over.
+      const unreadable = error instanceof Error && error.message.startsWith('synapse: cannot read')
+      return sendJson(res, 500, { error: unreadable ? error.message : 'Synapse 数据暂时不可用' })
     }
   }
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse', handler: (_req, res) => { res.writeHead(302, { location: '/synapse/' }); res.end() } }), 'synapse: redirect')
