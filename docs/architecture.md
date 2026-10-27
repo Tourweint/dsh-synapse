@@ -80,7 +80,7 @@ Only a turn a person typed becomes a card. The harness also writes its own `user
 
 Projected messages keep only a preview (280 characters), not the body. The body already lives in the DSH session log, and a workspace file full of copies is what made one workspace reach several megabytes and stall the canvas (issue #42). The canvas asks the Host for the bodies of the cards it actually mounts (`GET /synapse/api/threads/:id/full`), and the detail view asks for a whole thread at once; when a session is archived or gone from DSH the previews stay and the card is marked unavailable instead of rendering blank.
 
-Projected card text is capped at 8000 characters on the detail fetch, while the preview stays short.
+Bodies returned by the detail fetch are capped at 200 000 characters (`MAX_BODY_CHARS`), while the preview stays at 280; a truncated body carries a marker so the card can say the rest lives in DSH.
 
 Projection writes are coalesced during event bursts, and live updates reuse cached Markdown and patch the active card instead of rebuilding the complete canvas. Card coordinates remain visual metadata only and never determine conversation lineage.
 
