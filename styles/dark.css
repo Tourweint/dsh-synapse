@@ -131,8 +131,6 @@
 [data-theme="dark"] .message-body pre code { background: transparent; }
 [data-theme="dark"] .message-body th, [data-theme="dark"] .message-body td { border-color: var(--syn-line); }
 [data-theme="dark"] .message-body th { background: var(--syn-surface-3); }
-[data-theme="dark"] .message-branch { color: var(--syn-ink-4); }
-[data-theme="dark"] .message-branch:hover { background: var(--syn-surface-3); color: var(--syn-ink-2); }
 [data-theme="dark"] .message-fold { background: transparent; color: var(--syn-ink-3); }
 [data-theme="dark"] .message-fold:hover { background: transparent; color: var(--syn-ink); }
 [data-theme="dark"] .message-summary { color: inherit; }

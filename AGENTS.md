@@ -151,7 +151,8 @@ vm 切片要显式列出模块（`pickApp('text', 'markdown')`），所以改模
 `renderThread()` 照宿主 `ui-chat` 的转录样式，而不是照卡片样式——**整页只有对话本身**：
 
 - **问是气泡，答是正文**：`.message-user .message-body` 右对齐、`--syn-bubble` 底色、20px 圆角（官方 `--dsw-radius-xl`）、`10px 16px` 内边距、`14px/22px` 字、宽度 `70%`；答卡直接是 `.md` 正文铺在页面上（颜色走 `--syn-ink`）。消息本身**没有边框、没有背景、没有头像 / 角色行 / 时间**——`header` 一回到 `.message` 里就说明旧卡片样式漏回来了（`dev/harness` 有对应检查）。
-- **没有页头**：会话名、徽章、副标题、21px 大标题、`返回画布` 全部删掉，转录紧贴顶部的 tab 行开始。会话的两个动作（在 DSH 中打开 / 创建分支）挂在 `.detail-actions-bar`，占 `.canvas-header` 第一行右侧，别塞回对话区。
+- **没有页头**：会话名、徽章、副标题、21px 大标题、`返回画布` 全部删掉，转录紧贴顶部的 tab 行开始。会话的两个动作（在 DSH 中打开 / 创建分支）挂在 `.header-actions`，占 `.canvas-header` 第一行右侧，别塞回对话区。
+- **每条回答下面没有操作**：`创建分支` 在顶栏只有一个入口，逐条挂 `.message-branch` 只是把同一个动作用 N 次摆出来（`dev/harness` 与 `test/canvas-runtime.test.js` 都锁了"对话里不出现 `open-branch`"）。
 - **一列 920px**：`.detail-flow` 与 `.message-composer` 同宽同轴，宽 `min(920px, calc(100% - 32px))`（宿主嵌入对话的上限）；改列宽要两处一起改。
 - **底部是一条横条**：`.message-composer` 是一个 20px 圆角的输入卡（细线 + 柔投影），里面只有单行 `textarea`（占位「继续当前对话」）和右侧 30px 圆形 `.composer-send`（底色 `--syn-link`，与宿主发送键同为 business blue）。不要再退回"textarea + 并排按钮"的两块布局。
 
@@ -193,9 +194,9 @@ Markdown 只走 `.md` 一套排版（`styles/markdown.css`）。`markdownBlock()
 
 `.canvas-header` 第二行是视图标签，**用插件自己的词：地图（画布）/ 详情（会话）**——曾经照抄宿主的「轨迹 / 对话」，被要求改回来了，别再改。
 
-规格抄 `ui-conversation/src/client/skeleton/ConversationRoot.module.css` 的 `.viewTabs` / `.tab`：13px/16px 字重 500、净行高 25px（`min-height: 35px` + `margin: -10px -10px 0` 把命中区上下各撑 10px）、**间距 32px**、`padding-left: 12px`（配合 header 的 16px，文字起点落在 28px 上）。激活条是 2px 圆角短线，`bottom: -1px` 压住 header 的 0.5px 发丝线，藏掉"线断一截"的缝。**悬停和选中都用蓝的** `--syn-link`（= 宿主的 business primary）；`--syn-accent` 是近黑，用在这里会变成"没选中"的观感。第一行只放左端的折叠按钮和右端的一组动作，两行 38+38 = 76px。
+规格抄 `ui-conversation/src/client/skeleton/ConversationRoot.module.css` 的 `.viewTabs` / `.tab`：13px/16px 字重 500、净行高 25px（`min-height: 35px` + `margin: -10px -10px 0` 把命中区上下各撑 10px）、**间距 32px**、`padding-left: 12px`（配合 header 的 16px，文字起点落在 28px 上）。激活条是**蓝色圆角短线**，`bottom: -1px` 压住 header 的 0.5px 发丝线，藏掉"线断一截"的缝：**地图 2px、详情 3px**——详情下面紧接正文，2px 会被读成 header 那条线的一段，加粗 1px 才成为标签自己的标记。**悬停和选中都用蓝的** `--syn-link`（= 宿主的 business primary）；`--syn-accent` 是近黑，用在这里会变成"没选中"的观感。第一行只放左端的折叠按钮和右端的一组动作，两行 38+38 = 76px。
 
-**选中态挂在 `<nav>` 的 `data-active` 上，不是按钮的 class**：点击后浏览器把焦点给那个按钮，而 morph 会冻结"光标所有者"——按钮本身不持有光标，现在会被正常打补丁，但把状态放在不会被聚焦的父节点上更稳：`[data-active="thread"] button[data-action="show-thread"]` 决定颜色和 2px 短线，按钮只用 `aria-current="page"` 表达语义。0.5.5 之前用 class，点「详情」后两个标签一起失去高亮，就是因为被点击的那个按钮是冻结节点。
+**选中态挂在 `<nav>` 的 `data-active` 上，不是按钮的 class**：点击后浏览器把焦点给那个按钮，而 morph 会冻结"光标所有者"——按钮本身不持有光标，现在会被正常打补丁，但把状态放在不会被聚焦的父节点上更稳：`[data-active="thread"] button[data-action="show-thread"]` 决定颜色和短线（那条加粗到 3px 的规则也挂在这个选择器上），按钮只用 `aria-current="page"` 表达语义。0.5.5 之前用 class，点「详情」后两个标签一起失去高亮，就是因为被点击的那个按钮是冻结节点。
 
 ### 右上角：一组控件，两种视图
 

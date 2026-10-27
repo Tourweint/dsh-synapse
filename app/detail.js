@@ -9,7 +9,6 @@
  * column and the bubble ARE the structure.
  */
 function threadMessage(thread, message) {
-  const isUser = message.kind === 'user'
   const messageId = `${thread.id}:${message.sourceSeq ?? `${message.kind}:${message.at}`}`
   const collapsible = isProcessMessage(message)
   const expanded = state.expandedMessageIds.has(messageId)
@@ -22,12 +21,10 @@ function threadMessage(thread, message) {
   if (collapsible) {
     return `<article class="message message-${message.kind} message-process${expanded ? ' expanded' : ''}" ${seq}><button class="message-fold" type="button" data-action="toggle-message" data-message="${escapeHtml(messageId)}" aria-expanded="${expanded}" aria-label="${expanded ? '收起过程记录' : '展开过程记录'}" title="${expanded ? '收起' : '展开'}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg><span class="message-summary">${escapeHtml(processSummary(message.text))}</span></button>${expanded ? `<div class="message-body md">${body}</div>` : ''}</article>`
   }
-  // The answer's only chrome is the branch handle under it, the way the host
-  // puts message actions below the body instead of in a row of labels.
-  const branch = !isUser && Number.isInteger(message.sourceSeq)
-    ? `<footer class="message-actions"><button class="message-branch" type="button" data-action="open-branch" data-thread="${thread.id}" data-seq="${message.sourceSeq}" title="从此回答创建分支"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M4.5 3v6a2.5 2.5 0 0 0 2.5 2.5H12"/><circle cx="4.5" cy="3" r="1.5"/><circle cx="11.5" cy="12" r="1.5"/></svg>分支</button></footer>`
-    : ''
-  return `<article class="message message-${message.kind}${message.pending ? ' message-pending' : ''}" ${seq}><div class="message-body md">${body}</div>${branch}</article>`
+  // No per-message chrome at all: 创建分支 lives once in the header cluster (see
+  // `detailActionsBar`), so repeating it under every answer only added a second
+  // place to press the same thing.
+  return `<article class="message message-${message.kind}${message.pending ? ' message-pending' : ''}" ${seq}><div class="message-body md">${body}</div></article>`
 }
 
 /**

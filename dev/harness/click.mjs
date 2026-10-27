@@ -341,6 +341,10 @@ const threadActions = [...document.querySelectorAll('.header-actions .header-act
 check('会话操作移到顶栏 — 在 DSH 中打开 / 创建分支', threadActions.length === 2
   && document.querySelector('.header-actions').closest('.canvas-header') !== null,
   threadActions.map(action => action.dataset.action).join(' / ') || '(none)')
+// 创建分支 lives in that cluster only: an answer no longer grows its own pill,
+// so pressing branch is one place instead of one per turn.
+check('对话里不再挂逐条「分支」按钮', document.querySelector('.detail-flow [data-action="open-branch"]') === null
+  && document.querySelector('.detail-flow .message-branch') === null)
 // The reported bug: clicking 对话 dropped BOTH highlights, because the clicked
 // button was the focused node and the patcher froze it. The state now lives on
 // the nav (`data-active`), which never holds focus.

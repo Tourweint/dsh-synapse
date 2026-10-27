@@ -377,6 +377,14 @@ test('renders the refactored detail view with role-based messages', async () => 
   assert.match(styles, /\.detail-flow \{[^}]*max-width: min\(920px/)
   assert.match(styles, /\.message-user \.message-body \{[^}]*var\(--syn-bubble\)/)
   assert.doesNotMatch(styles, /\.message-user headers? \{/)
+  // 创建分支 has exactly one home (the header cluster), so an answer carries no
+  // chrome of its own and the old pill styles are gone with it.
+  const row = message.slice(message.indexOf('function threadMessage'), message.indexOf('function detailActionsBar'))
+  assert.doesNotMatch(row, /message-branch|open-branch|message-actions/)
+  assert.doesNotMatch(styles, /\.message-branch|\.message-actions/)
+  // The active tab keeps one blue bar in both views, one pixel heavier in the
+  // transcript where it borders a column of text instead of empty canvas.
+  assert.match(styles, /\.canvas-tabs\[data-active="thread"\] button\[data-action="show-thread"\]::after \{ height: 3px; \}/)
 })
 
 test('persists dragged card positions and can focus the current session', async () => {

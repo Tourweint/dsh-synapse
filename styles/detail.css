@@ -34,11 +34,7 @@
 .message-process.expanded .message-fold svg { transform: rotate(90deg); }
 .message-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .message-process .message-body { margin-top: 2px; padding-left: 19px; color: var(--syn-ink-2); }
-.message-branch { display: inline-flex; min-height: 24px; align-items: center; gap: 4px; border: 0; border-radius: 6px; background: transparent; padding: 0 6px; color: var(--syn-ink-4); font-size: 11.5px; }
-.message-branch:hover { background: var(--syn-surface-3); color: var(--syn-ink-2); }
-.message-branch svg { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
-/* Answer chrome sits below the body with a 6px offset, the host's pattern. */
-.message-actions { display: flex; margin-top: 10px; margin-left: -6px; }
+/* No answer chrome: 创建分支 lives once, in the header cluster. */
 .message-streaming { display: inline-flex; align-items: center; gap: 6px; color: var(--syn-ink-3) !important; font-style: italic; }
 .streaming-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--syn-ink-4); animation: streaming-pulse 1.1s ease-in-out infinite; }
 @keyframes streaming-pulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }

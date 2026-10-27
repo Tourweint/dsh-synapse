@@ -121,6 +121,10 @@
 .canvas-tabs[data-active="thread"] button[data-action="show-thread"] { color: var(--syn-link); }
 .canvas-tabs[data-active="canvas"] button[data-action="show-canvas"]::after,
 .canvas-tabs[data-active="thread"] button[data-action="show-thread"]::after { background: var(--syn-link); }
+/* 详情 carries one pixel more: on the map the bar sits on empty canvas, while the
+   transcript starts right under it, so a 2px line reads as part of the header's
+   hairline there. Same blue, same `bottom: -1px` anchor — only the weight moves. */
+.canvas-tabs[data-active="thread"] button[data-action="show-thread"]::after { height: 3px; }
 .canvas-tabs button:disabled { cursor: default; opacity: .4; }
 /* ── Header actions: one cluster, both views ──────────────────────────────
    Map tools and session actions are the same component on the same slot (row 1,
