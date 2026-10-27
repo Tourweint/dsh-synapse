@@ -280,7 +280,18 @@ export class WorkspaceStore {
         await this.save()
       }
     } catch (error) {
-      if (error?.code !== 'ENOENT') throw new Error(`synapse: cannot read ${this.dataFile}: ${error.message}`)
+      if (error?.code !== 'ENOENT') {
+        // A newer layout (v6 stopped persisting messages) or a truncated write
+        // must not take the whole canvas down: fall back to the pre-migration
+        // copy, which still carries the message index.
+        const restored = await restoreBackup(`${this.dataFile}.v5-backup`)
+        if (restored !== null) {
+          this.state = restored
+          await this.save()
+          return
+        }
+        throw new Error(`synapse: cannot read ${this.dataFile}: ${error.message}`)
+      }
       this.state = { version: 5, hiddenSessionIds: [], workspaces: [] }
       await this.save()
     }
@@ -566,6 +577,13 @@ export class WorkspaceStore {
 class InputError extends Error {}
 class NotFoundError extends Error {}
 
+async function restoreBackup(file) {
+  try {
+    return normalizeState(JSON.parse(await readFile(file, 'utf8'))).state
+  } catch {
+    return null
+  }
+}
 function normalizeState(value) {
   let migrated = false
   let state
