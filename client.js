@@ -39,6 +39,42 @@ window.__ModuleLoader__.load({
       return Array.isArray(snapshot.archivedSessionIds) ? snapshot.archivedSessionIds.map(String) : []
     }
 
+    // The pill can be dragged anywhere it stays reachable; the position survives
+    // reloads. Kept next to the module so the drag arithmetic is testable without
+    // a DOM (see test/switch-drag.test.js).
+    const SWITCH_POSITION_KEY = 'dsh-synapse:switch-position:v1'
+    const SWITCH_MARGIN = 8
+    const SWITCH_STEP = 8
+
+    /** Keep the pill fully inside the viewport, with a margin to grab it again. */
+    function clampSwitchPosition(position, viewport, size) {
+      const maxLeft = Math.max(SWITCH_MARGIN, viewport.width - size.width - SWITCH_MARGIN)
+      const maxTop = Math.max(SWITCH_MARGIN, viewport.height - size.height - SWITCH_MARGIN)
+      return {
+        left: Math.min(Math.max(SWITCH_MARGIN, Math.round(position.left)), maxLeft),
+        top: Math.min(Math.max(SWITCH_MARGIN, Math.round(position.top)), maxTop),
+      }
+    }
+
+    function readSwitchPosition(storage) {
+      try {
+        const value = JSON.parse(storage.getItem(SWITCH_POSITION_KEY) ?? 'null')
+        if (value === null || typeof value !== 'object') return null
+        if (!Number.isFinite(value.left) || !Number.isFinite(value.top)) return null
+        return { left: Math.round(value.left), top: Math.round(value.top) }
+      } catch {
+        return null
+      }
+    }
+
+    function writeSwitchPosition(storage, position) {
+      try { storage.setItem(SWITCH_POSITION_KEY, JSON.stringify(position)) } catch { /* private mode */ }
+    }
+
+    function clearSwitchPosition(storage) {
+      try { storage.removeItem(SWITCH_POSITION_KEY) } catch { /* private mode */ }
+    }
+
     module.exports.inject = ['sessions', 'workspaces', 'uiWorkspace', 'uiConversation']
     module.exports.apply = ctx => {
       const prompt = async (sessionId, text) => {
@@ -77,11 +113,11 @@ window.__ModuleLoader__.load({
       //     rightward (title, lineage and agent-preset chips). Half the sidebar
       //     width puts the pill over the centre of the content area instead of
       //     the window; `min()` pulls it back in on narrow windows.
-      style.textContent = '.dsh-synapse-switch{position:fixed;z-index:200;top:calc(var(--dsh-frame-chrome-top,var(--dsh-frame-top-clearance,0px)) + 12px);left:min(calc(50% + 130px),calc(100% - 96px));display:flex;gap:2px;transform:translateX(-50%);border:1px solid #d1d5db;border-radius:999px;background:rgba(255,255,255,.96);padding:3px;backdrop-filter:blur(10px);-webkit-app-region:no-drag;box-shadow:0 2px 8px rgba(17,24,39,.1)}.dsh-synapse-switch button{height:28px;border:0;border-radius:999px;background:transparent;padding:0 11px;color:#6b7280;font:600 12px Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap;-webkit-app-region:no-drag}.dsh-synapse-switch button:hover{background:#f3f4f6;color:#111827}.dsh-synapse-switch button.active{background:#111827;color:#fff}.dsh-synapse-switch button:focus-visible{outline:2px solid #111827;outline-offset:2px}.dsh-synapse-overlay{position:fixed;z-index:100;inset:var(--dsh-frame-chrome-top,var(--dsh-frame-top-clearance,0px)) 0 0 0;background:#f5f7fa}.dsh-synapse-overlay.is-opening{visibility:hidden}.dsh-synapse-overlay[hidden]{display:none}.dsh-synapse-overlay iframe{display:block;width:100%;height:100%;border:0}html[data-fullscreen] .dsh-synapse-overlay{top:0}html[data-fullscreen] .dsh-synapse-switch{top:12px}'
+      style.textContent = '.dsh-synapse-switch{position:fixed;z-index:200;top:calc(var(--dsh-frame-chrome-top,var(--dsh-frame-top-clearance,0px)) + 12px);left:min(calc(50% + 130px),calc(100% - 96px));display:flex;gap:2px;transform:translateX(-50%);border:1px solid #d1d5db;border-radius:999px;background:rgba(255,255,255,.96);padding:3px;backdrop-filter:blur(10px);-webkit-app-region:no-drag;box-shadow:0 2px 8px rgba(17,24,39,.1)}.dsh-synapse-switch button{height:28px;border:0;border-radius:999px;background:transparent;padding:0 11px;color:#6b7280;font:600 12px Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap;-webkit-app-region:no-drag}.dsh-synapse-switch button:hover{background:#f3f4f6;color:#111827}.dsh-synapse-switch button.active{background:#111827;color:#fff}.dsh-synapse-switch button:focus-visible{outline:2px solid #111827;outline-offset:2px}.dsh-synapse-overlay{position:fixed;z-index:100;inset:var(--dsh-frame-chrome-top,var(--dsh-frame-top-clearance,0px)) 0 0 0;background:#f5f7fa}.dsh-synapse-overlay.is-opening{visibility:hidden}.dsh-synapse-overlay[hidden]{display:none}.dsh-synapse-overlay iframe{display:block;width:100%;height:100%;border:0}html[data-fullscreen] .dsh-synapse-overlay{top:0}html[data-fullscreen] .dsh-synapse-switch{top:12px}.dsh-synapse-grip{display:grid;width:16px;height:28px;place-items:center;border-radius:999px;color:#9ca3af;background:transparent;cursor:grab;touch-action:none;-webkit-app-region:no-drag}.dsh-synapse-grip:hover{background:#f3f4f6;color:#4b5563}.dsh-synapse-grip:focus-visible{outline:2px solid #111827;outline-offset:2px}.dsh-synapse-grip svg{width:8px;height:14px;fill:currentColor}.dsh-synapse-switch.is-dragging .dsh-synapse-grip{cursor:grabbing}'
       document.head.append(style)
       const host = document.createElement('div')
       host.className = 'dsh-synapse-host'
-      host.innerHTML = '<div class="dsh-synapse-switch" role="group" aria-label="视图切换"><button type="button" data-view="dialog" class="active" aria-pressed="true">对话</button><button type="button" data-view="map" aria-pressed="false">会话地图</button></div><section class="dsh-synapse-overlay" hidden><iframe title="会话地图" src="/synapse/"></iframe></section>'
+      host.innerHTML = '<div class="dsh-synapse-switch" role="group" aria-label="视图切换"><span class="dsh-synapse-grip" role="button" tabindex="0" aria-label="拖动位置" title="拖动位置（双击复位，方向键微调）"><svg aria-hidden="true" viewBox="0 0 8 14"><circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/><circle cx="2" cy="7" r="1.3"/><circle cx="6" cy="7" r="1.3"/><circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/></svg></span><button type="button" data-view="dialog" class="active" aria-pressed="true">对话</button><button type="button" data-view="map" aria-pressed="false">会话地图</button></div><section class="dsh-synapse-overlay" hidden><iframe title="会话地图" src="/synapse/"></iframe></section>'
       document.body.append(host)
       const switchEl = host.querySelector('.dsh-synapse-switch')
       // Two live instances (a bundle loaded twice, or a sibling that outlived a
@@ -107,6 +143,77 @@ window.__ModuleLoader__.load({
       const mapButton = host.querySelector('[data-view="map"]')
       const overlay = host.querySelector('.dsh-synapse-overlay')
       const frame = host.querySelector('iframe')
+      const grip = host.querySelector('.dsh-synapse-grip')
+
+      // --- dragging the pill -------------------------------------------------
+      // A stored position switches the pill from its CSS seat (centred, under the
+      // window chrome) to explicit viewport coordinates; `transform` has to be
+      // dropped with it or the pill would stay half a width to the left.
+      const switchSize = () => ({ width: switchEl.offsetWidth, height: switchEl.offsetHeight })
+      const viewportSize = () => ({ width: window.innerWidth, height: window.innerHeight })
+      const applySwitchPosition = position => {
+        if (position === null) {
+          switchEl.style.removeProperty('left')
+          switchEl.style.removeProperty('top')
+          switchEl.style.removeProperty('transform')
+          return
+        }
+        switchEl.style.left = `${position.left}px`
+        switchEl.style.top = `${position.top}px`
+        switchEl.style.transform = 'none'
+      }
+      const storedSwitchPosition = readSwitchPosition(window.localStorage)
+      if (storedSwitchPosition !== null) {
+        applySwitchPosition(clampSwitchPosition(storedSwitchPosition, viewportSize(), switchSize()))
+      }
+      let switchDrag = null
+      const finishSwitchDrag = event => {
+        if (switchDrag === null) return
+        const drag = switchDrag
+        switchDrag = null
+        switchEl.classList.remove('is-dragging')
+        try { grip.releasePointerCapture(event.pointerId) } catch { /* already released */ }
+        if (drag.moved && drag.position !== null) writeSwitchPosition(window.localStorage, drag.position)
+      }
+      grip.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return
+        event.preventDefault()
+        const rect = switchEl.getBoundingClientRect()
+        switchDrag = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, moved: false, position: null }
+        switchEl.classList.add('is-dragging')
+        try { grip.setPointerCapture(event.pointerId) } catch { /* capture is best effort */ }
+      })
+      grip.addEventListener('pointermove', event => {
+        if (switchDrag === null) return
+        const dx = event.clientX - switchDrag.x
+        const dy = event.clientY - switchDrag.y
+        if (!switchDrag.moved && Math.hypot(dx, dy) < 3) return
+        switchDrag.moved = true
+        switchDrag.position = clampSwitchPosition({ left: switchDrag.left + dx, top: switchDrag.top + dy }, viewportSize(), switchSize())
+        applySwitchPosition(switchDrag.position)
+      })
+      grip.addEventListener('pointerup', finishSwitchDrag)
+      grip.addEventListener('pointercancel', finishSwitchDrag)
+      // Double-click resets the pill to its shipped seat.
+      grip.addEventListener('dblclick', () => {
+        clearSwitchPosition(window.localStorage)
+        applySwitchPosition(null)
+      })
+      // Keyboard path: arrows nudge, so the control is usable without a pointer.
+      grip.addEventListener('keydown', event => {
+        const step = { ArrowLeft: [-SWITCH_STEP, 0], ArrowRight: [SWITCH_STEP, 0], ArrowUp: [0, -SWITCH_STEP], ArrowDown: [0, SWITCH_STEP] }[event.key]
+        if (step === undefined) return
+        event.preventDefault()
+        const rect = switchEl.getBoundingClientRect()
+        const position = clampSwitchPosition({ left: rect.left + step[0], top: rect.top + step[1] }, viewportSize(), switchSize())
+        applySwitchPosition(position)
+        writeSwitchPosition(window.localStorage, position)
+      })
+      const keepSwitchInView = () => {
+        const stored = readSwitchPosition(window.localStorage)
+        if (stored !== null) applySwitchPosition(clampSwitchPosition(stored, viewportSize(), switchSize()))
+      }
+      window.addEventListener('resize', keepSwitchInView)
 
       const setView = view => {
         const showingMap = view === 'map'
@@ -385,6 +492,7 @@ window.__ModuleLoader__.load({
         frame.removeEventListener('load', onFrameLoad)
         window.removeEventListener('message', onMessage)
         window.removeEventListener('keydown', onKeyDown)
+        window.removeEventListener('resize', keepSwitchInView)
         themeObserver?.disconnect()
         unsubscribeSessions()
         unsubscribeWorkspaces()
