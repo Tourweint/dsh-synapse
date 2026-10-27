@@ -28,9 +28,19 @@ test('keys morph matching on the card and thread identities', () => {
   }
 })
 
-test('leaves the caret owner untouched while morphing', () => {
-  // Typing in the composer (or a drag handle) must survive a projection tick.
-  assert.match(source, /function morphHoldsCaret\(node\)/)
-  assert.match(source, /if \(morphHoldsCaret\(from\)\) return from/)
-  assert.match(source, /node === document\.activeElement/)
+test('keeps the caret owner\'s children but still patches its attributes', () => {
+  // Typing in the composer (or a live selection) must survive a projection tick,
+  // but a *clicked* button is document.activeElement too — treating that as
+  // "owns the caret" froze its subtree, so the clicked sidebar row never got its
+  // `active` class and no row looked selected after a switch.
+  assert.match(source, /function morphKeepsChildren\(node\)/)
+  assert.match(source, /if \(!morphKeepsChildren\(from\)\) morphChildren\(from, to\)/)
+  assert.match(source, /node instanceof HTMLTextAreaElement/)
+  assert.match(source, /node\.isContentEditable === true/)
+  assert.doesNotMatch(source, /node === document\.activeElement/)
+
+  const patchIndex = source.indexOf("if (from.getAttribute(attribute.name) !== attribute.value)")
+  const guardIndex = source.indexOf('if (!morphKeepsChildren(from)) morphChildren(from, to)')
+  assert.ok(patchIndex > 0, 'attributes are still patched')
+  assert.ok(guardIndex > patchIndex, 'attributes are patched before children are touched')
 })

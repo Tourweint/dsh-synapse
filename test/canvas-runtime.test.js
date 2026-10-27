@@ -323,16 +323,22 @@ test('identifies when an anchored draft has no visible parent card', async () =>
   assert.match(placement, /if \(parent === undefined\) return null/)
 })
 
-test('prevents collapse from hiding drafts or the active conversation and restores focus', async () => {
+test('collapse is never refused for the active conversation, and never moves the camera', async () => {
   const source = await readFile(new URL('../app.js', import.meta.url), 'utf8')
   const toggle = source.slice(source.indexOf("button.dataset.action === 'toggle-card-children'"), source.indexOf("button.dataset.action === 'open-continue'"))
 
   assert.match(toggle, /const visibleCards = conversationGraphView\(allCards, nextCollapsed\)\.cards/)
+  // A draft with unsaved text is the only thing worth refusing to hide.
   assert.match(toggle, /draftPlacement\(allCards\)\?\.parent\.id/)
   assert.match(toggle, /请先完成或取消正在编辑的追问或分支/)
-  assert.match(toggle, /当前会话位于这个后续分支中/)
+  // The active conversation is no longer a reason to swallow the click: that
+  // refusal made "−" look dead on the newest card, which is where people press it.
+  assert.doesNotMatch(toggle, /当前会话位于这个后续分支中/)
+  // Folding hides a subtree; it must not re-frame the canvas (that jump was the
+  // "坐标会重新定位" complaint) and the handle keeps focus without scrolling.
+  assert.doesNotMatch(toggle, /focusActiveCard\(\)/)
+  assert.match(toggle, /focus\(\{ preventScroll: true \}\)/)
   assert.match(toggle, /window\.setTimeout/)
-  assert.match(toggle, /\.focus\(\)/)
 })
 
 test('reveals hidden ancestor paths when a conversation becomes current', async () => {

@@ -81,7 +81,12 @@ button.primary:hover { border-color: #000; background: #000; color: #fff; }
 .connectors .draft-connector { stroke: #3478f6; stroke-dasharray: 5 4; }
 .cards-layer { position: absolute; inset: 0; }
 .thread-card { position: absolute; display: grid; width: 310px; height: 276px; grid-template-rows: auto auto minmax(0, 1fr) auto; border: 1px solid #d8e0e8; border-radius: 7px; background: #fff; box-shadow: 0 3px 11px rgba(33,48,67,.08); overflow: visible; }
-.thread-card:hover { border-color: #9ca3af; box-shadow: 0 8px 20px rgba(33,48,67,.13); }
+/* The graph buttons hang 12px outside the card (`right: -12px`), so a card that
+   comes later in DOM order used to paint its own body over that overhang and
+   steal the click — folding worked on some cards and silently did nothing on
+   others. The hovered/focused card is lifted above its siblings so the whole
+   button stays hit-testable. */
+.thread-card:hover, .thread-card:focus-within { z-index: 3; border-color: #9ca3af; box-shadow: 0 8px 20px rgba(33,48,67,.13); }
 .thread-card.selected { box-shadow: 0 0 0 2px rgba(17,24,39,.16), 0 8px 20px rgba(33,48,67,.13); }
 .node-handle { position: absolute; top: -8px; left: 50%; display: grid; width: 28px; height: 15px; min-height: 15px; place-items: center; transform: translateX(-50%); border: 1px solid #d8e0e8; border-radius: 4px; background: #fff; cursor: grab; padding: 0; }
 .node-handle::after { content: '...'; display: block; margin: -5px 0 0 2px; color: #94a3b8; font-size: 11px; letter-spacing: 1.5px; line-height: 1; }

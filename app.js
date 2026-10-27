@@ -61,7 +61,7 @@ const state = {
   // screenful and cached here (issue #42).
   bodies: new Map(), bodyRequests: new Set(), bodyFailures: new Set(), bodiesLoaded: new Set(),
   archivedSessionIds: new Set(),
-  draft: null, error: '', workspaceLoad: 0, branchAnchors: new Map(savedBranchAnchors), cardPositions: new Map(savedCardPositions), collapsedCardIds: new Set(savedCollapsedCards), quickPhrases: savedQuickPhrases, quickPhraseEditorOpen: false,
+  draft: null, error: '', workspaceLoad: 0, workspaceLoadOwner: null, workspaceLoadBusy: false, workspaceFingerprint: null, workspacesSignature: null, branchAnchors: new Map(savedBranchAnchors), cardPositions: new Map(savedCardPositions), collapsedCardIds: new Set(savedCollapsedCards), quickPhrases: savedQuickPhrases, quickPhraseEditorOpen: false,
   dragging: false, canvasGesture: false, canvasRefreshAfter: 0, canvasViewInitialized: false, canvasCamera: { x: 0, y: 0 }, mapCardSessionSwitches: new Set(),
   expandedMessageIds: new Set(),
   canvasCards: undefined, canvasCardsById: undefined, canvasGraph: undefined, mountedCardIds: new Set(), canvasNeedsCenter: false,
@@ -181,6 +181,12 @@ function currentDshThread(threads = state.workspace?.threads ?? []) {
   return typeof id === 'string' ? threads.find(thread => thread.dshSessionId === id) : undefined
 }
 
+/** Only the session fields the canvas actually draws; used to skip no-op renders. */
+function sessionSignature(session) {
+  if (session === null || session === undefined) return ''
+  return [session.id ?? '', session.title ?? session.displayTitle ?? '', session.cwd ?? '', session.running === true ? '1' : '0'].join('|')
+}
+
 function workspaceChoices() {
   if (state.dshWorkspaces.length > 0) return state.dshWorkspaces.map(workspace => ({ ...workspace, source: 'dsh' }))
   return state.summaries.map(workspace => ({ id: workspace.id, title: workspace.title, path: workspace.cwd, sessionIds: [], source: 'projection' }))
@@ -193,23 +199,38 @@ async function threadsForDshWorkspace(workspace) {
   return projections.flatMap(projection => projection.workspace.threads.filter(thread => requested.has(thread.dshSessionId)))
 }
 
-async function openDshWorkspace(id, { renderAfter = true, preserveCanvasCamera = false } = {}) {
+async function openDshWorkspace(id, { renderAfter = true, preserveCanvasCamera = false, userInitiated = false } = {}) {
   const workspace = state.dshWorkspaces.find(item => item.id === id)
   if (workspace === undefined) return false
+  // A background poll must never cancel or pre-empt a workspace the user just
+  // picked, and two polls must never run at once: the 1s poll used to open a
+  // fresh whole-workspace load every tick, each one cancelling the previous
+  // ticket, so nothing ever rendered (16 loads / 12 cancellations in 19s).
+  if (!userInitiated && (state.workspaceLoadOwner === 'user' || state.workspaceLoadBusy)) return false
   const load = ++state.workspaceLoad
-  state.selectedDshWorkspaceId = id
-  const threads = await threadsForDshWorkspace(workspace)
-  if (load !== state.workspaceLoad) return true
-  const nextWorkspaceId = `dsh:${workspace.id}`
-  if (state.workspace?.id !== nextWorkspaceId && !preserveCanvasCamera) resetCanvasCamera()
-  state.workspace = { id: nextWorkspaceId, title: workspace.title, cwd: workspace.path, threads }
-  const currentThread = currentDshThread(state.workspace.threads)
-  state.activeId = currentThread?.id ?? (state.workspace.threads.some(thread => thread.id === state.activeId) ? state.activeId : state.workspace.threads[0]?.id ?? null)
-  if (currentThread !== undefined) revealConversationThread(conversationCards(state.workspace.threads), currentThread.id)
-  if (renderAfter && canReplaceView()) render()
-  await Promise.all(state.workspace.threads.map(thread => loadThreadHistory(thread, false)))
-  if (renderAfter && load === state.workspaceLoad && canReplaceView()) render()
-  return true
+  if (userInitiated) state.workspaceLoadOwner = 'user'
+  state.workspaceLoadBusy = true
+  try {
+    state.selectedDshWorkspaceId = id
+    const threads = await threadsForDshWorkspace(workspace)
+    if (load !== state.workspaceLoad) return true
+    const nextWorkspaceId = `dsh:${workspace.id}`
+    if (state.workspace?.id !== nextWorkspaceId && !preserveCanvasCamera) resetCanvasCamera()
+    state.workspace = { id: nextWorkspaceId, title: workspace.title, cwd: workspace.path, threads }
+    state.workspaceFingerprint = JSON.stringify(state.workspace)
+    const currentThread = currentDshThread(state.workspace.threads)
+    state.activeId = currentThread?.id ?? (state.workspace.threads.some(thread => thread.id === state.activeId) ? state.activeId : state.workspace.threads[0]?.id ?? null)
+    if (currentThread !== undefined) revealConversationThread(conversationCards(state.workspace.threads), currentThread.id)
+    if (renderAfter && canReplaceView()) render()
+    await Promise.all(state.workspace.threads.map(thread => loadThreadHistory(thread, false)))
+    if (renderAfter && load === state.workspaceLoad && canReplaceView()) render()
+    // After a user switch, bring that workspace's active conversation on screen.
+    if (userInitiated && load === state.workspaceLoad) window.requestAnimationFrame(() => { if (state.mode === 'canvas') focusActiveCard() })
+    return true
+  } finally {
+    state.workspaceLoadBusy = false
+    if (userInitiated && load === state.workspaceLoad) state.workspaceLoadOwner = null
+  }
 }
 
 async function openCurrentWorkspace({ preserveCanvasCamera = false } = {}) {
@@ -238,15 +259,39 @@ async function openWorkspace(id, { renderAfter = true } = {}) {
   if (load !== state.workspaceLoad) return
   if (state.workspace?.id !== body.workspace.id) resetCanvasCamera()
   state.workspace = body.workspace
+  state.workspaceFingerprint = JSON.stringify(state.workspace)
   state.activeId = state.workspace.threads.some(thread => thread.id === state.activeId) ? state.activeId : state.workspace.threads[0]?.id ?? null
   if (renderAfter && canReplaceView()) render()
   await Promise.all(state.workspace.threads.map(thread => loadThreadHistory(thread, false)))
   if (renderAfter && load === state.workspaceLoad && canReplaceView()) render()
 }
 
+/**
+ * Quiet refresh of the workspace already on screen: re-fetch its payload and only
+ * rebuild the canvas when the payload really changed. The poll used to call
+ * `openDshWorkspace` every second, which re-ran the whole load (and its ticket)
+ * just to discover nothing had changed.
+ */
+async function refreshCurrentWorkspace() {
+  const current = state.workspace
+  if (current === null || typeof current.id !== 'string' || !current.id.startsWith('dsh:')) return false
+  const body = await api(`/synapse/api/workspaces/${current.id.slice(4)}`)
+  if (state.workspace !== current) return false
+  const fingerprint = JSON.stringify(body.workspace)
+  if (state.workspaceFingerprint === fingerprint) return false
+  state.workspaceFingerprint = fingerprint
+  state.workspace = body.workspace
+  if (!state.workspace.threads.some(thread => thread.id === state.activeId)) {
+    state.activeId = state.workspace.threads[0]?.id ?? null
+  }
+  if (canReplaceView()) render()
+  return true
+}
+
 async function refreshProjection() {
   const summariesChanged = await refreshSummaries({ renderAfter: false })
   if (!summariesChanged || state.workspace === null || !canReplaceView()) return summariesChanged
+  if (state.workspace.id.startsWith('dsh:')) return (await refreshCurrentWorkspace()) || summariesChanged
   if (state.selectedDshWorkspaceId !== null) await openDshWorkspace(state.selectedDshWorkspaceId)
   else await openWorkspace(state.workspace.id)
   return true
@@ -1435,14 +1480,29 @@ function morphKeyOf(node) {
   return null
 }
 
-/** An element that owns the caret keeps its children untouched. */
-function morphHoldsCaret(node) {
-  if (!(node instanceof Element)) return false
-  if (node === document.activeElement) return true
-  const selection = typeof window.getSelection === 'function' ? window.getSelection() : null
-  if (selection === null || selection.rangeCount === 0) return false
+// Only the node that actually owns the caret/selection is frozen — never its
+// ancestors. Freezing every ancestor of the anchor froze the entire shell (a
+// caret in a card's answer made `.canvas-view` and `main` un-morphable), so the
+// inspector never appeared and the sidebar never refreshed after a switch.
+let morphFrozenRoot = null
+
+function morphFrozenRootOfDocument() {
+  if (typeof window.getSelection !== 'function') return null
+  const selection = window.getSelection()
+  if (selection === null || selection.rangeCount === 0) return null
   const anchor = selection.anchorNode
-  return anchor !== null && node.contains(anchor)
+  if (anchor === null) return null
+  const element = anchor.nodeType === 1 ? anchor : anchor.parentElement
+  if (element === null) return null
+  return element.closest('.thread-answer, .card-inspector-answer, .message-body, [data-draft], input, textarea, [contenteditable="true"]')
+}
+
+/** Elements whose children must survive a render: they own the caret, or a selection. */
+function morphKeepsChildren(node) {
+  if (!(node instanceof Element)) return false
+  if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) return true
+  if (node.isContentEditable === true) return true
+  return node === morphFrozenRoot
 }
 
 function morphNode(from, to) {
@@ -1454,14 +1514,17 @@ function morphNode(from, to) {
   if (!(from instanceof Element) || !(to instanceof Element) || from.tagName !== to.tagName) {
     return replaceMorphed(from, to)
   }
-  if (morphHoldsCaret(from)) return from
+  // Attributes are always patched, even on the node the user just clicked: a
+  // pressed button becomes document.activeElement, and treating that as "owns
+  // the caret" used to freeze its whole subtree — the clicked sidebar row never
+  // received its `active` class, so no row looked selected after a switch.
   for (const attribute of [...from.attributes]) {
     if (!to.hasAttribute(attribute.name)) from.removeAttribute(attribute.name)
   }
   for (const attribute of [...to.attributes]) {
     if (from.getAttribute(attribute.name) !== attribute.value) from.setAttribute(attribute.name, attribute.value)
   }
-  morphChildren(from, to)
+  if (!morphKeepsChildren(from)) morphChildren(from, to)
   return from
 }
 
@@ -1503,7 +1566,15 @@ function morphChildren(from, to) {
 function morphInto(container, html) {
   const template = document.createElement('template')
   template.innerHTML = html
-  morphChildren(container, template.content)
+  // Computed once per pass: the one subtree that must not be rebuilt because the
+  // caret/selection lives in it. Everything else (inspector, sidebar rows, cards)
+  // keeps updating normally.
+  morphFrozenRoot = morphFrozenRootOfDocument()
+  try {
+    morphChildren(container, template.content)
+  } finally {
+    morphFrozenRoot = null
+  }
 }
 
 function bindDragHandle(handle) {
@@ -1824,6 +1895,10 @@ app.addEventListener('click', async event => {
       state.error = ''
       if (state.workspace !== null) revealConversationThread(conversationCards(state.workspace.threads), thread.id)
       render()
+      // The state switch is instant, so the map has to show it: without this the
+      // camera stayed on the previous conversation's cards (often thousands of
+      // pixels away), and a click that worked looked like a dead button.
+      window.requestAnimationFrame(() => { if (state.mode === 'canvas') focusActiveCard() })
       void loadThreadHistory(thread)
       // Bidirectional current-session sync: switch DSH's current session
       // without closing the map; the client confirms via synapse:current-session.
@@ -1841,12 +1916,18 @@ app.addEventListener('click', async event => {
         const visibleIds = new Set(visibleCards.map(card => card.id))
         const draftParentId = draftPlacement(allCards)?.parent.id
         if (draftParentId !== undefined && !visibleIds.has(draftParentId)) return setError('请先完成或取消正在编辑的追问或分支')
-        if (state.activeId !== null && !visibleCards.some(card => card.dshThreadId === state.activeId)) return setError('当前会话位于这个后续分支中，请先切换会话')
+        // Collapsing is a view operation, so it is never refused: it used to be
+        // blocked whenever the active conversation would be hidden, which made
+        // "−" look dead on exactly the newest card people press it on. Keep the
+        // camera useful instead, by re-focusing after the collapse below.
       }
       collapsing ? state.collapsedCardIds.add(cardId) : state.collapsedCardIds.delete(cardId)
       persistCollapsedCards()
+      // Keep the viewport exactly where it is: folding is about hiding a
+      // subtree, not about re-framing the canvas (moving the camera on every
+      // fold is disorienting). Focus the handle without scrolling for a11y.
       render()
-      window.setTimeout(() => document.querySelector(`[data-action="toggle-card-children"][data-card="${selectorValue(cardId)}"]`)?.focus(), 0)
+      window.setTimeout(() => document.querySelector(`[data-action="toggle-card-children"][data-card="${selectorValue(cardId)}"]`)?.focus({ preventScroll: true }), 0)
     }
     if (button.dataset.action === 'open-continue' && thread !== undefined) openContinue(thread, button.dataset.card)
     if (button.dataset.action === 'open-branch' && thread !== undefined) {
@@ -1885,7 +1966,7 @@ app.addEventListener('change', event => {
   if (choice?.source === 'dsh') {
     // Map → native sync: switching workspaces moves DSH's current session to
     // the workspace's most recently updated session, keeping both sides in step.
-    void openDshWorkspace(choice.id).then(opened => {
+    void openDshWorkspace(choice.id, { userInitiated: true }).then(opened => {
       if (!opened) return
       const threads = state.workspace?.threads ?? []
       const latest = threads
@@ -1926,10 +2007,19 @@ window.addEventListener('message', event => {
     document.documentElement.dataset.theme = data.dark === true ? 'dark' : 'light'
   }
   if (data.type === 'synapse:workspaces') {
-    state.dshWorkspaces = Array.isArray(data.workspaces) ? data.workspaces.filter(workspace => typeof workspace?.id === 'string' && typeof workspace.title === 'string' && Array.isArray(workspace.sessionIds)) : []
+    const nextWorkspaces = Array.isArray(data.workspaces) ? data.workspaces.filter(workspace => typeof workspace?.id === 'string' && typeof workspace.title === 'string' && Array.isArray(workspace.sessionIds)) : []
     // DSH owns the archive set; mirror it so an archived session stops drawing
     // cards here too (issue #21 / #19).
-    state.archivedSessionIds = new Set(Array.isArray(data.archivedSessionIds) ? data.archivedSessionIds.filter(id => typeof id === 'string') : [])
+    const nextArchived = new Set(Array.isArray(data.archivedSessionIds) ? data.archivedSessionIds.filter(id => typeof id === 'string') : [])
+    // The parent re-sends this on every session-list change, i.e. on every
+    // streamed chunk. Acting on an unchanged payload re-ran a whole workspace
+    // load and rebuilt the canvas several times a second, which is what made
+    // clicking feel unresponsive and switching workspaces feel stalled.
+    const signature = JSON.stringify([nextWorkspaces, [...nextArchived].sort()])
+    if (signature === state.workspacesSignature) return
+    state.workspacesSignature = signature
+    state.dshWorkspaces = nextWorkspaces
+    state.archivedSessionIds = nextArchived
     const current = currentDshWorkspace()
     if (current !== undefined && current.id !== state.selectedDshWorkspaceId) void openDshWorkspace(current.id).catch(setError)
     else if (state.selectedDshWorkspaceId !== null) void openDshWorkspace(state.selectedDshWorkspaceId).catch(setError)
@@ -1937,7 +2027,9 @@ window.addEventListener('message', event => {
   }
   if (data.type === 'synapse:current-session') {
     const previousId = state.currentDsh?.id
+    const previousSignature = sessionSignature(state.currentDsh)
     state.currentDsh = data.session
+    const nextSignature = sessionSignature(data.session)
     const preserveCanvasCamera = previousId !== data.session?.id && state.mapCardSessionSwitches.delete(data.session?.id)
     const thread = currentDshThread()
     if (thread !== undefined) {
@@ -1961,7 +2053,10 @@ window.addEventListener('message', event => {
         }
       }).catch(setError)
     }
-    else if (canReplaceView()) render()
+    // Only the fields the canvas draws matter here: the parent re-sends this
+    // message for every streamed chunk, and re-rendering on each one queued a
+    // full rebuild behind every click.
+    else if (previousSignature !== nextSignature && canReplaceView()) render()
   }
   if (data.type === 'synapse:live-reply' && typeof data.sessionId === 'string') {
     const thread = state.workspace?.threads.find(item => item.dshSessionId === data.sessionId)
