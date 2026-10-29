@@ -280,6 +280,10 @@ app.addEventListener('click', async event => {
     if (button.dataset.action === 'focus-active') focusActiveCard()
     if (button.dataset.action === 'dismiss-error') { state.error = ''; render() }
     if (button.dataset.action === 'layout' && state.workspace !== null) {
+      // 整理 is also a fresh look at the Host's projection: harness notes that
+      // used to occupy a card are dropped there, and a click should pick that up
+      // instead of waiting for the 1s poll.
+      void refreshProjection().catch(setError)
       resetCardPositions()
       resetCanvasCamera()
       render()
