@@ -74,9 +74,11 @@ Run one `dsh web` instance for each shared profile.
 
 With `autoProjection` enabled, committed DSH session events are grouped by working directory and projected into the corresponding Synapse workspace.
 
-Each user question becomes a conversation card. The following assistant messages are folded into that turn, and the final assistant reply is shown as the answer. Forked sessions connect to the parent turn at the durable DSH seed boundary rather than at an arbitrary canvas coordinate.
+Each user question becomes a conversation card, and each turn owns exactly one answer row. A turn is a run of steps (one `assistant/message` per step): the step that carries prose replaces the answer in place, and a step that only invokes tools contributes its calls to that answer's process records instead of adding a row. The closing prose of the run is therefore the answer, and a transcript no longer grows by one row per tool call. Forked sessions connect to the parent turn at the durable DSH seed boundary rather than at an arbitrary canvas coordinate.
 
-Only a turn a person typed becomes a card. The harness also writes its own `user/message` rows — the runtime-context snapshot, the skill catalogue `<system-reminder>` — and those carry a structured `data.source.kind`; injected kinds (`skill-catalog`, plus the runtime snapshot's text marker) are not projected, so they neither occupy a card nor steal the answer from the real question. Existing projections are pruned the same way when the store loads.
+Nothing in the event stream says "this was the last tool call"; only `turn/end` says the run is over. It closes the answer, and when the run produced no prose at all it still writes an empty answer flagged `ended`, so a finished turn never looks like it is still waiting for a reply and the turn's tool calls keep a place to fold into.
+
+Only a turn a person typed becomes a card. The harness also writes its own `user/message` rows — the runtime-context snapshot, the skill catalogue, time notes, workspace instructions, approval-policy changes, `[model changed]` notices, compaction checkpoints, `<goal_round>` markers — and those carry a structured `data.source.kind`. Only `kind: 'user'` is a person's message: every other kind is skipped, so it neither occupies a card nor steals the reply that belongs to the real question above it. Events written before the tag existed fall back to the openers in `INJECTED_USER_TEXT_MARKERS` (`<system-reminder>` is the broadest). Existing projections are pruned the same way when the store loads, and the replies left behind by a removed row are collapsed back onto the question above — when a group ends up owning several answers, the fullest prose wins, because the last one is often a lead-in to a tool call.
 
 Projected messages keep only a preview (280 characters), not the body. The body already lives in the DSH session log, and a workspace file full of copies is what made one workspace reach several megabytes and stall the canvas (issue #42). The canvas asks the Host for the bodies of the cards it actually mounts (`GET /synapse/api/threads/:id/full`), and the detail view asks for a whole thread at once; when a session is archived or gone from DSH the previews stay and the card is marked unavailable instead of rendering blank.
 
@@ -88,7 +90,7 @@ Archiving is owned by DSH. The map mirrors `archivedSessionIds` from the Workspa
 
 ## Tool process folding
 
-Live events pair tool calls and results by `callId` and render them inside the related assistant reply instead of as standalone conversation cards.
+Live events pair tool calls and results by `callId` and render them inside the answer of their own turn instead of as standalone conversation cards. Records are matched to a turn rather than to a turn *and* a step, because step 5's call may arrive after step 3 already wrote the answer. Calls that arrive before the turn has spoken wait in `pendingProcess` and are adopted by the answer when it appears.
 
 Legacy v3 migrations did not always have durable call IDs. Those records pair each tool call with the next tool result by order during migration.
 

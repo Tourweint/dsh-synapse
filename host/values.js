@@ -1,6 +1,6 @@
 // Small value helpers: validation, titles, and what counts as prose.
 
-import { EXCERPT_CHARS, INJECTED_USER_SOURCE_KINDS, SKILL_CATALOG_MARKER, SKILL_CATALOG_OPENER } from './constants.js'
+import { EXCERPT_CHARS, INJECTED_USER_TEXT_MARKERS, SKILL_CATALOG_MARKER, SKILL_CATALOG_OPENER, USER_SOURCE_KIND } from './constants.js'
 
 export class InputError extends Error {}
 
@@ -61,9 +61,13 @@ export function isTimeContextText(text) {
   return typeof text === 'string' && text.trimStart().startsWith('Time sampled while preparing')
 }
 
-/** A harness-authored turn, identified by its structured provenance. */
+/**
+ * A harness-authored turn, identified by its structured provenance: only
+ * `kind: 'user'` is a message a person sent. An untagged source (events written
+ * before DSH started stamping them) falls back to the text markers below.
+ */
 export function isInjectedUserSource(source) {
-  return typeof source?.kind === 'string' && INJECTED_USER_SOURCE_KINDS.has(source.kind)
+  return typeof source?.kind === 'string' && source.kind !== '' && source.kind !== USER_SOURCE_KIND
 }
 
 /**
@@ -77,11 +81,28 @@ export function isSkillCatalogText(text) {
 }
 
 /**
- * Whether a stored message must stay out of the canvas graph: runtime
- * snapshots and skill catalogues were never a turn the user took.
+ * A harness note that reached storage as a `user` message: a runtime snapshot, a
+ * time note, a skill catalogue, a compaction checkpoint, a `[model changed]`
+ * notice, a goal round, an approval-policy change, workspace instructions. The
+ * stored copy carries no `source`, so only the opener can identify it.
+ */
+export function isInjectedUserText(text) {
+  if (typeof text !== 'string') return false
+  if (isRuntimeContextText(text) || isTimeContextText(text) || isSkillCatalogText(text)) return true
+  const head = text.trimStart()
+  // `<system-reminder>` is the harness's wrapper for anything it injects as a
+  // user row: the skill catalogue, workspace instructions, "Updated instructions
+  // from: …". A person does not type that tag.
+  if (head.startsWith(SKILL_CATALOG_OPENER)) return true
+  return INJECTED_USER_TEXT_MARKERS.some(marker => head.startsWith(marker) || head.includes(marker))
+}
+
+/**
+ * Whether a stored message must stay out of the canvas graph: a harness note was
+ * never a turn the user took.
  */
 export function isInjectedUserMessage(message) {
-  return message?.kind === 'user' && (isRuntimeContextMessage(message) || isTimeContextText(message.text) || isSkillCatalogText(message.text))
+  return message?.kind === 'user' && isInjectedUserText(message.text)
 }
 
 export function contentText(content) {

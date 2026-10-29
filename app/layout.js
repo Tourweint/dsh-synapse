@@ -277,6 +277,7 @@ function turnCardNode(thread, turn, role, previousAnswerId) {
     answer: turn.answer,
     error: turn.error,
     processCount: turn.processCount,
+    closed: turn.closed === true,
   }
 }
 
@@ -306,14 +307,17 @@ function conversationCards(threads) {
         if (Array.isArray(reply.process)) processCount += reply.process.length
         else if (reply.kind === 'tool') processCount += 1
       }
+      // The closing prose of the turn: the LAST assistant message that actually
+      // says something. A trailing empty answer (a tool-only turn whose record
+      // was kept for its calls) must not hide the prose above it — merging a
+      // harness note into the turn above is exactly how one lands there.
+      const spoken = replies.findLast(reply => typeof reply.text === 'string' && reply.text.trim() !== '')
       turns.push({
         index: turns.length,
         seq: question.sourceSeq ?? messageIndex,
         question: question.text,
         questionMessage: question,
-        // The closing prose of the turn: the last assistant message that has
-        // text at all. An intermediate "let me look" line is not the answer.
-        answer: replies.at(-1) ?? null,
+        answer: spoken ?? replies.at(-1) ?? null,
         error: errors.at(-1) ?? null,
         processCount,
       })
@@ -321,6 +325,10 @@ function conversationCards(threads) {
     const liveReply = state.liveReplies.get(thread.dshSessionId)
     const latestTurn = turns.at(-1)
     if (liveReply?.running && latestTurn !== undefined && (latestTurn.answer === null || latestTurn.answer.pending === true)) latestTurn.answer = { kind: 'assistant', text: liveReply.text, pending: true, at: new Date().toISOString() }
+    // A turn with a later question can no longer be waiting: the run that would
+    // answer it is over, otherwise the user could not have asked again. Saying
+    // "等待助手回复" there is a promise that will never be kept.
+    for (const turn of turns.slice(0, -1)) if (turn.answer === null) turn.closed = true
     if (turns.length === 0) {
       turns.push({ index: 0, seq: undefined, question: thread.dshSessionTitle ?? thread.title, answer: null, error: null, processCount: 0, empty: true })
     }

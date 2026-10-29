@@ -243,14 +243,16 @@ export class WorkspaceStore {
       const { state, migrated } = normalizeState(parsed)
       this.state = state
       if (migrated) {
-        // Dropping stored bodies is the one migration that cannot be undone by
-        // re-projection alone, so keep the pre-v5 file next to the new one.
-        if (Number(parsed?.version) < 5) await copyFile(this.dataFile, `${this.dataFile}.v4-backup`).catch(() => {})
+        // Migrations drop what re-projection alone cannot rebuild: v5 the stored
+        // bodies, v6 the per-step transcript rows. Keep the previous file next to
+        // the new one, tagged with the schema it was written in.
+        const from = Number(parsed?.version)
+        if (Number.isSafeInteger(from) && from < 6) await copyFile(this.dataFile, `${this.dataFile}.v${from}-backup`).catch(() => {})
         await this.save()
       }
     } catch (error) {
       if (error?.code !== 'ENOENT') throw new Error(`synapse: cannot read ${this.dataFile}: ${error.message}`)
-      this.state = { version: 5, hiddenSessionIds: [], workspaces: [] }
+      this.state = { version: 6, hiddenSessionIds: [], workspaces: [] }
       await this.save()
     }
   }
@@ -442,22 +444,24 @@ export class WorkspaceStore {
       workspace.updatedAt = thread.updatedAt
       return
     }
+    // A turn owns exactly one answer message: the steps in between are tool calls
+    // wrapped in narration, not messages of their own.
+    if (event.type === 'assistant/message') {
+      this.foldAssistantStep(workspace, thread, event)
+      return
+    }
+    if (event.type === 'turn/end') {
+      this.closeTurn(workspace, thread, event)
+      return
+    }
     const projection = projectableEvent(event)
     const existing = thread.messages.find(message => message.sourceSeq === event.seq)
     if (existing !== undefined) {
-      // A stored preview can predate a projection fix: assistant bodies used to
-      // swallow tool-call arguments and tool results, which turned a tool
-      // invocation into text that read like the model's answer. Re-projection
-      // (the mount-time replay) refreshes the preview in place instead of
-      // keeping the polluted one for the life of the file.
-      if (projection === null) {
-        // An assistant message with no prose at all is a tool-call step. It used
-        // to store the tool name and arguments as its text, which is how a tool
-        // invocation ended up reading like the model's answer. Demote it to a
-        // process record instead of deleting it, so the call history survives.
-        if (event.type === 'assistant/message' && existing.kind === 'assistant') existing.kind = 'tool'
-        return
-      }
+      // A stored preview can predate a projection fix: user and todo rows are
+      // refreshed in place (the assistant half is handled by
+      // `foldAssistantStep`) instead of keeping the old preview for the life of
+      // the file.
+      if (projection === null) return
       if (existing.text !== projection.text) {
         existing.text = projection.text
         existing.length = projection.length
@@ -491,19 +495,135 @@ export class WorkspaceStore {
     }
   }
 
+  /** The one answer message a turn owns, if the turn has spoken yet. */
+  turnAnswer(thread, turn) {
+    return [...thread.messages].reverse().find(message => message.kind === 'assistant' && message.turn === turn)
+  }
+
   /**
-   * Fold one tool call or result into the assistant message of its own
-   * turn/step, keyed by `callId`, so a tool invocation never becomes a
-   * separate canvas card. If a tool result arrives before its associated
-   * assistant/error message, retain it on the thread until that turn appears.
+   * Fold one assistant step into its turn's answer. A turn is a run of steps and
+   * only the last step that carries prose is the answer; the earlier steps are
+   * narration around tool calls. Storing one message per step made a long tool
+   * loop add a row per call and buried the closing prose, so a later step
+   * overwrites the preview in place and `turn/end` decides when it is final.
+   */
+  foldAssistantStep(workspace, thread, event) {
+    const turn = event.data?.turn
+    const projection = projectableEvent(event)
+    // A step that only invokes tools has no prose: it contributes its calls to
+    // the turn's process records and nothing to the answer.
+    if (projection === null) return
+    const answer = turn === undefined ? undefined : this.turnAnswer(thread, turn)
+    // A row already stored for this seq is refreshed in place (an older
+    // projection wrote tool arguments as the text, and a replay must be able to
+    // repair it). Adopting the turn is what lets later steps fold into it.
+    const target = answer ?? thread.messages.find(message => message.sourceSeq === event.seq && message.kind !== 'user' && message.kind !== 'error')
+    const at = new Date(event.time).toISOString()
+    if (target === undefined) {
+      const message = {
+        id: randomUUID(),
+        text: projection.text,
+        length: projection.length,
+        truncated: projection.truncated,
+        kind: 'assistant',
+        sourceSeq: event.seq,
+        at,
+        turn,
+        step: event.data?.step,
+        process: [],
+      }
+      this.attachPendingProcess(thread, message)
+      thread.messages.push(message)
+    } else {
+      // The body and its seq move to the newest prose step, so the on-demand
+      // loader reads the closing text rather than the first narration line.
+      target.text = projection.text
+      target.length = projection.length
+      target.truncated = projection.truncated
+      target.kind = 'assistant'
+      target.sourceSeq = event.seq
+      target.turn = turn
+      target.step = event.data?.step
+      target.at = at
+      target.ended = false
+    }
+    thread.updatedAt = at
+    workspace.updatedAt = at
+  }
+
+  /**
+   * `turn/end` is the only authoritative "this turn is over" signal: a step that
+   * stopped calling tools cannot be told apart from one that is about to call
+   * another, so the turn stays open until the harness says so. A turn that ends
+   * without prose still gets an answer record (empty, `ended`) — that is what
+   * lets the map say "run over, no text" instead of waiting forever, and gives
+   * the turn's tool calls somewhere to fold into.
+   */
+  closeTurn(workspace, thread, event) {
+    const turn = event.data?.turn
+    const at = new Date(event.time).toISOString()
+    const failure = projectableEvent(event)
+    if (failure !== null) {
+      const message = {
+        id: randomUUID(),
+        text: failure.text,
+        length: failure.length,
+        truncated: failure.truncated,
+        kind: failure.kind,
+        sourceSeq: event.seq,
+        at,
+        turn,
+        step: event.data?.step,
+        process: [],
+        ended: true,
+      }
+      this.attachPendingProcess(thread, message)
+      thread.messages.push(message)
+      const answer = turn === undefined ? undefined : this.turnAnswer(thread, turn)
+      if (answer !== undefined) answer.ended = true
+    } else {
+      const answer = turn === undefined ? undefined : this.turnAnswer(thread, turn)
+      if (answer !== undefined) {
+        answer.ended = true
+      } else if ((thread.pendingProcess ?? []).some(entry => entry.turn === turn)) {
+        // Only worth recording when the turn left something behind (a tool run
+        // with no closing prose). A turn with nothing at all — a filtered
+        // harness note, an immediate cancel — gets no row, so it cannot leave a
+        // blank answer behind on the canvas.
+        const message = {
+          id: randomUUID(),
+          text: '',
+          length: 0,
+          truncated: false,
+          kind: 'assistant',
+          sourceSeq: event.seq,
+          at,
+          turn,
+          step: event.data?.step,
+          process: [],
+          ended: true,
+        }
+        this.attachPendingProcess(thread, message)
+        thread.messages.push(message)
+      }
+    }
+    thread.updatedAt = at
+    workspace.updatedAt = at
+  }
+
+  /**
+   * Fold one tool call or result into the answer of its turn, keyed by `callId`,
+   * so a tool invocation never becomes a separate canvas card. Matching on the
+   * turn (not turn+step) is what lets a call from step 5 land on an answer that
+   * step 3 already wrote. If the turn has not spoken yet, the record waits in
+   * `pendingProcess` until it does.
    */
   foldToolProcess(thread, event) {
     const at = new Date(event.time).toISOString()
     const data = event.data ?? {}
     const target = [...thread.messages].reverse().find(message =>
       (message.kind === 'assistant' || message.kind === 'error')
-      && (message.turn === data.turn && message.step === data.step
-        || message.turn === undefined && message.step === undefined))
+      && (message.turn === data.turn || message.turn === undefined && data.turn === undefined))
     const process = target === undefined ? (thread.pendingProcess ??= []) : (target.process ??= [])
     const callId = String(event.type === 'tool/call' ? data.callId : data.message?.source?.callId ?? '')
     const entry = process.find(item => item.callId === callId)
@@ -529,10 +649,10 @@ export class WorkspaceStore {
 
   attachPendingProcess(thread, message) {
     if (!Array.isArray(thread.pendingProcess) || thread.pendingProcess.length === 0 || !Array.isArray(message.process)) return
-    const matching = thread.pendingProcess.filter(entry => entry.turn === message.turn && entry.step === message.step)
+    const matching = thread.pendingProcess.filter(entry => entry.turn === message.turn)
     if (matching.length === 0) return
-    message.process.push(...matching.map(({ turn, step, ...entry }) => entry))
-    thread.pendingProcess = thread.pendingProcess.filter(entry => entry.turn !== message.turn || entry.step !== message.step)
+    message.process.push(...matching.map(({ turn: _turn, ...entry }) => entry))
+    thread.pendingProcess = thread.pendingProcess.filter(entry => entry.turn !== message.turn)
   }
 
   thread({ title, parentId, dshSessionId, dshSessionTitle, position, color, now, order }) {

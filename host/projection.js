@@ -7,7 +7,7 @@ import { contentText, errorText, excerptOf, isInjectedUserMessage, isInjectedUse
 export function normalizeState(value) {
   let migrated = false
   let state
-  if ((value?.version === 2 || value?.version === 3 || value?.version === 4 || value?.version === 5) && Array.isArray(value.workspaces)) {
+  if ((value?.version === 2 || value?.version === 3 || value?.version === 4 || value?.version === 5 || value?.version === 6) && Array.isArray(value.workspaces)) {
     const hiddenSessionIds = Array.isArray(value.hiddenSessionIds) ? value.hiddenSessionIds.filter(item => typeof item === 'string') : []
     migrated = value.version < 3 || !Array.isArray(value.hiddenSessionIds)
     const workspaces = value.workspaces.map(workspace => ({
@@ -25,6 +25,12 @@ export function normalizeState(value) {
       }) : [],
     }))
     state = { ...value, version: value.version, hiddenSessionIds, workspaces }
+    // Dropping a harness note fuses its replies onto the question above it, so a
+    // turn can end up owning two answers. Collapse is idempotent: it returns false
+    // when every turn already has one. Older payloads wait for the v6 step, which
+    // runs after legacy tool cards are folded — collapsing first would throw those
+    // cards away before they become process records.
+    if (value.version >= 6 && collapseTurnMessages(state.workspaces)) migrated = true
   } else if (value?.version === 1 && Array.isArray(value.workspaces)) {
     const now = typeof value.updatedAt === 'string' ? value.updatedAt : new Date().toISOString()
     state = {
@@ -67,7 +73,100 @@ export function normalizeState(value) {
     state.version = 5
     migrated = true
   }
+  // v6 keeps one message per turn. Older projections stored one per model step,
+  // so a single question with a long tool loop carried a hundred rows.
+  if (state.version < 6) {
+    if (collapseTurnMessages(state.workspaces)) migrated = true
+    state.version = 6
+    migrated = true
+  }
   return { state, migrated }
+}
+
+/**
+ * Collapse the rows a turn used to own into the one that carries its answer.
+ * Everything between two user messages belongs to one turn: the closing prose
+ * survives, tool-only rows fold into that answer's `process`, and a turn with no
+ * prose at all keeps an empty `ended` answer so its call history still has a
+ * home. The bodies live in the session log, so nothing here is unrecoverable.
+ */
+export function collapseTurnMessages(workspaces) {
+  let changed = false
+  for (const workspace of workspaces) {
+    for (const thread of workspace.threads ?? []) {
+      if (!Array.isArray(thread.messages) || thread.messages.length === 0) continue
+      const messages = []
+      let group = []
+      let threadChanged = false
+      const flush = () => {
+        if (group.length === 0) return
+        const merged = mergeTurnGroup(group)
+        if (merged.length !== group.length) threadChanged = true
+        messages.push(...merged)
+        group = []
+      }
+      for (const message of thread.messages) {
+        // Only a question starts a new turn. A todo list is part of the run it
+        // belongs to, so it must not split its answers in two.
+        if (message?.kind === 'user') {
+          flush()
+          messages.push(message)
+          continue
+        }
+        group.push(message)
+      }
+      flush()
+      if (threadChanged) {
+        thread.messages = messages
+        changed = true
+      }
+    }
+  }
+  return changed
+}
+
+function mergeTurnGroup(group) {
+  const toolOnly = group.every(message => message?.kind === 'tool' || message?.kind === 'tool-result')
+  if (group.length === 1 && !toolOnly) return group
+  const process = []
+  for (const message of group) {
+    for (const entry of Array.isArray(message.process) ? message.process : []) {
+      if (entry?.callId !== undefined && process.some(item => item?.callId === entry.callId)) continue
+      process.push(entry)
+    }
+  }
+  const answers = group.filter(message => message.kind === 'assistant' && typeof message.text === 'string' && message.text.trim() !== '')
+  // One answer: keep it. Several (a harness note used to split one long run into
+  // turns) and the last may be a one-line lead-in before a tool call, so take the
+  // fullest prose — that is the round summary a reader would call the answer.
+  const answer = answers.length <= 1
+    ? answers[0]
+    : answers.reduce((best, message) => ((message.length ?? message.text.length) >= (best.length ?? best.text.length) ? message : best))
+  const error = group.findLast(message => message.kind === 'error')
+  // A todo list is the run's own state, not an answer: it keeps its row and
+  // moves after the merged answer.
+  const extras = group.filter(message => message?.kind === 'todo')
+  const merged = []
+  if (answer !== undefined) merged.push({ ...answer, process })
+  else if (error === undefined && process.length > 0) {
+    // Tool rows only (an old projection of a tool loop): keep the calls, anchored
+    // to an empty answer so the fold still renders and nothing reads as a reply.
+    const last = group.at(-1)
+    merged.push({
+      id: typeof last?.id === 'string' ? last.id : randomUUID(),
+      kind: 'assistant',
+      text: '',
+      length: 0,
+      truncated: false,
+      at: last?.at,
+      sourceSeq: last?.sourceSeq,
+      process,
+      ended: true,
+    })
+  }
+  if (error !== undefined) merged.push({ ...error, process: Array.isArray(error.process) ? error.process : [] })
+  merged.push(...extras)
+  return merged
 }
 
 /** v4 message → v5 message: keep identity and a preview, drop the body. */
@@ -218,11 +317,27 @@ export function bodiesFromEvents(thread, events, seqs) {
     }
     calls.set(callId, record)
   }
+  // The closing prose of each turn, latest step last. A preview written by an
+  // older projection (or by a step that only carried tool calls) can point at an
+  // event with no prose at all; the turn's own closing text is the right answer
+  // there, and the stored preview is a better last resort than an empty body.
+  const closingProse = new Map()
+  for (const event of events) {
+    if (event?.type !== 'assistant/message') continue
+    const turn = event.data?.turn
+    if (turn === undefined) continue
+    const prose = proseText(event.data?.message?.content).trim()
+    if (prose === '') continue
+    closingProse.set(turn, prose)
+  }
   for (const message of thread.messages ?? []) {
     if (wanted !== null && !wanted.has(message.sourceSeq)) continue
     const event = eventsBySeq.get(message.sourceSeq)
     if (event === undefined) continue
-    const body = eventBody(event).trim()
+    const direct = eventBody(event).trim()
+    const body = direct !== ''
+      ? direct
+      : (message.kind === 'assistant' ? closingProse.get(message.turn) ?? '' : '') || (typeof message.text === 'string' ? message.text.trim() : '')
     const capped = body.length > MAX_BODY_CHARS ? `${body.slice(0, MAX_BODY_CHARS)}${BODY_TRUNCATED_SUFFIX}` : body
     const process = Array.isArray(message.process)
       ? message.process.map(entry => ({ ...entry, ...(calls.get(String(entry.callId)) ?? {}) }))

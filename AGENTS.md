@@ -133,7 +133,15 @@ vm 切片要显式列出模块（`pickApp('text', 'markdown')`），所以改模
 
 一个 turn 是**两张卡**，纵向成对：**问卡**（用户原话，`role: 'question'`）在上，**答卡**（模型收尾正文，`role: 'answer'`）紧贴其下 20px。节点 id 形如 `<thread>:turn:<seq>:q` / `:a`；两者都带 `turnIndex`，所以详情面板、折叠、拖动都按 turn 走。默认 3 行，点右上箭头展开到 8 行。
 
-1. **两种卡各自只装一种东西**：问卡只放 `question.text`；答卡只放 `card.answer.text` 的 `answerSummary()`。投影层是这道闸门：`proseText()` 只取 `text` 块（`tool-call` / `tool-result` 一律不进助手正文），`INJECTED_USER_SOURCE_KINDS` / `isTimeContextText()` 把 harness 注入的 runtime/time/skill 上下文挡在 turn 之外。任何工具名、参数 JSON、`Time sampled…` 出现在卡片上都是回归。
+1. **两种卡各自只装一种东西**：问卡只放 `question.text`；答卡只放 `card.answer.text` 的 `answerSummary()`。投影层是这道闸门：`proseText()` 只取 `text` 块（`tool-call` / `tool-result` 一律不进助手正文），`isInjectedUserSource()` 把 harness 注入的行挡在 turn 之外。任何工具名、参数 JSON、`Time sampled…` 出现在卡片上都是回归。
+
+**只有 `source.kind === 'user'` 是人打的**：harness 会以 `user/message` 的形状塞自己的行，种类已经见过一整套——`runtime-context`、`time-context`、`skill-catalog`、`agent-instructions`（`<system-reminder>`，含 `Updated instructions from:`）、`user-approval`、`model-selection`（`[model changed: …]`）、`goal`（`<goal_round>`）、`compact-checkpoint`（compaction 摘要）。**旧版白名单只挡了三种**，剩下的每一种都占了一张问卡，还把本该落在真问题上的答复偷走：真问题变「本轮没有正文」，checkpoint 卡上却是答案。所以规则改成反过来的——**除 `user` 以外的 kind 一律不算 turn**；早于这个标记的事件没有 `source`，退回 `isInjectedUserText()` 的前缀表（`<system-reminder>` 开头一律算注入）。存量数据在 `normalizeState()` 载入时按同一张表清掉，清完再 `collapseTurnMessages()` 把「注入行两边的两轮」并回一轮（一组里有多条答复时取**正文最长**的那条——最后一条常常是调用工具前的半句话）。
+
+**合并是有代价的**：`<goal_round>` 这一种本来就把一次长目标切成 N 轮，挡掉之后 N 轮并成一轮、只留一条答复（更早几轮的汇报只留在 DSH 日志里）。修这个之前，先想清楚是不是要放开某一种 kind。
+
+**一轮只存一条答复**：turn 的每一步都是一条 `assistant/message`（真实会话里一轮能有上百步），但**中间步骤不各占一条消息**——`foldAssistantStep()` 把后一步的正文原地覆盖到这一轮唯一的答复上（收尾正文就是最后一条有 prose 的步骤），只有工具调用的步骤只往这轮的 `process` 里加记录。`foldToolProcess()` 按 **turn** 归属（不是 turn+step），所以第 5 步的调用能落在第 3 步写的答复上。
+
+**「最后一次工具调用」这件事没有信号，`turn/end` 才是终点**：某一步不再调工具，和它下一步还要调工具，在日志里长得一样。所以闭环交给 `turn/end`（`closeTurn()`）：它给答复打 `ended`；如果整轮一句正文都没有但留下了工具调用（纯工具轮、被取消），仍然写一条**空正文 + `ended`** 的答复，让卡片说「本轮没有正文」而不是永远停在「等待助手回复」，也顺手修好了 `settlePendingReply()` 一直不成立、输入框一直 disabled 的老问题。**什么都没留下就不写行**——否则会给被过滤掉的注入轮留下一条空答复。还有一个更早的坑：`applyLiveReplyToCard()` 曾按 `.thread-card-body .thread-summary` 找节点，那次卡片重构后该选择器已不存在，流式补丁静默失效——现在打 `.thread-card.is-answer` 里的 `.thread-card-text`。
 2. **尺寸常量必须两边对齐**：`CARD_WIDTH` / `CARD_HEIGHT(92)` / `CARD_HEIGHT_EXPANDED(188)` / `CARD_PAIR_GAP(20)` / `CARD_STEP_X(308)` 与 `styles/cards.css` 的 `.thread-card`（252×92 / `.expanded` 188）是同一组数字，92 = 16 内边距 + 18 标签行 + 2px 间隔 + 3×18 行高。改字号 / 行高 / 内边距 / 间隔必须重算常量，否则文字被裁成半行。布局是**高度感知**的（`cardHeight(card)`），问卡展开会把它的答卡和后续卡顶下去。
 3. **卡内没有滚动区**：`.thread-card-text` 用 `-webkit-line-clamp` 截断，滚轮始终缩放画布（只有草稿卡片里的 `textarea` 保留原生滚动）。全尺寸正文只在右侧 `.card-inspector` 里。
 4. **卡片不可选中、整卡拖动**：`.thread-card { user-select: none }` + `bindCardDrag()` 的长按（150ms / 5px 阈值）。没有按下就是普通点击（打开 inspector），按住没动就松手也**不写位置**——一旦写进 `card-positions`，这张卡就被 `positionLocked` 钉住，不再参与自动布局。
@@ -229,7 +237,7 @@ Markdown 只走 `.md` 一套排版（`styles/markdown.css`）。`markdownBlock()
 
 | 路径 | 内容 | 删了会怎样 |
 |---|---|---|
-| `$DSH_HOME/synapse/workspaces.json` | 画布布局 + 每轮 280 字预览（schema v5），**正文不在这里** | 只丢布局，不丢会话 |
+| `$DSH_HOME/synapse/workspaces.json` | 画布布局 + 每轮 280 字预览（schema v6），**正文不在这里** | 只丢布局，不丢会话 |
 | `$DSH_HOME/sessions/--<cwd slug>--/session-*/` | DSH 会话日志，正文按需从这里读 | 才是真的丢正文 |
 
 调试用的临时产物（`dev/harness/node_modules`、`%TEMP%` 下的 jsdom 环境）都不进 git；`dev/` 也不在 `package.json` 的 `files` 白名单里，不会进 npm 包。

@@ -128,6 +128,62 @@ test('keeps a failed turn visible when Harness produces no assistant message', a
   assert.equal(answer.canContinue, true)
 })
 
+test('marks a turn closed once a later question exists, so no reply is still coming', async () => {
+  const { conversationCards } = await loadConversationCards()
+  const cards = conversationCards([{
+    id: 'session-closed', parentId: null, position: { x: 86, y: 82 },
+    messages: [
+      { kind: 'user', text: '调用搜索', sourceSeq: 1 },
+      { kind: 'user', text: '换个问法', sourceSeq: 3 },
+      { kind: 'assistant', text: '这次有回答', sourceSeq: 4 },
+    ],
+  }])
+
+  const answers = answersOf(cards)
+  // The first turn never answered, but the user already asked again: waiting is
+  // a promise that cannot be kept.
+  assert.equal(answers[0].answer, null)
+  assert.equal(answers[0].closed, true)
+  assert.equal(answers[1].closed, false)
+})
+
+test('a closed turn with an empty answer is a record, not a wait', async () => {
+  const { conversationCards, state } = await loadConversationCards()
+  state.liveReplies.set('session-quiet', { running: false, text: '' })
+  const cards = conversationCards([{
+    id: 'session-quiet', dshSessionId: 'session-quiet', parentId: null, position: { x: 86, y: 82 },
+    messages: [
+      { kind: 'user', text: '整理一下', sourceSeq: 1 },
+      { kind: 'assistant', text: '', ended: true, process: [{ callId: 'c1', name: 'grep', status: 'done' }], sourceSeq: 4 },
+    ],
+  }])
+
+  const answer = answersOf(cards)[0]
+  assert.equal(answer.answer.ended, true)
+  assert.equal(answer.answer.pending, undefined)
+  assert.equal(answer.processCount, 1)
+  assert.equal(answer.closed, false)
+})
+
+test('a trailing empty answer does not hide the prose above it', async () => {
+  const { conversationCards } = await loadConversationCards()
+  const cards = conversationCards([{
+    id: 'session-merged', parentId: null, position: { x: 86, y: 82 },
+    messages: [
+      { kind: 'user', text: '咋还能改上下文呢', sourceSeq: 1 },
+      { kind: 'assistant', text: '可以改，但要分清两个上下文。', sourceSeq: 7 },
+      // A harness turn that was filtered out left its record behind: an empty
+      // answer with the calls of that run. It belongs to the question above, but
+      // it must never win the answer slot.
+      { kind: 'assistant', text: '', ended: true, sourceSeq: 9, process: [{ callId: 'c1', name: 'grep', status: 'done' }] },
+    ],
+  }])
+
+  const answer = answersOf(cards)[0]
+  assert.equal(answer.answer.text, '可以改，但要分清两个上下文。')
+  assert.equal(answer.processCount, 1)
+})
+
 test('connects a restored fork to its DSH seed boundary, not its canvas position', async () => {
   const { conversationCards } = await loadConversationCards()
   const cards = conversationCards([
