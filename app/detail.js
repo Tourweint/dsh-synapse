@@ -18,6 +18,10 @@ function threadMessage(thread, message) {
     ? '<p class="message-streaming"><span class="streaming-dot"></span>正在回复</p>'
     : `${renderMarkdown(message.text)}${streaming}${process === null ? '' : processRecords(process, messageId)}`
   const seq = `data-message-seq="${Number.isInteger(message.sourceSeq) ? message.sourceSeq : ''}"`
+  // A closed turn that produced no prose (a long tool run, a cancelled one) has
+  // nothing to say on its own: its records fold, and an empty body row would only
+  // leave a blank line in the transcript.
+  if (!collapsible && body.trim() === '') return ''
   if (collapsible) {
     return `<article class="message message-${message.kind} message-process${expanded ? ' expanded' : ''}" ${seq}><button class="message-fold" type="button" data-action="toggle-message" data-message="${escapeHtml(messageId)}" aria-expanded="${expanded}" aria-label="${expanded ? '收起过程记录' : '展开过程记录'}" title="${expanded ? '收起' : '展开'}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg><span class="message-summary">${escapeHtml(processSummary(message.text))}</span></button>${expanded ? `<div class="message-body md">${body}</div>` : ''}</article>`
   }

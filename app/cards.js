@@ -52,7 +52,10 @@ function conversationCard(card, graph) {
   } else if (card.error !== null) {
     body = `<p class="thread-card-text is-error">本轮失败：${escapeHtml(card.error.text)}</p>`
   } else if (card.answer === null) {
-    body = '<p class="thread-card-text is-empty">等待助手回复</p>'
+    // `closed` means a later question already exists, so no reply is coming.
+    body = card.closed
+      ? '<p class="thread-card-text is-empty">本轮没有正文</p>'
+      : '<p class="thread-card-text is-empty">等待助手回复</p>'
   } else if (card.answer.pending && card.answer.text === '') {
     body = '<p class="thread-card-text is-pending">正在回复…</p>'
   } else {

@@ -62,8 +62,11 @@ function renderCardInspector(card) {
   if (thread === null) return ''
   const process = inspectorProcessEntries(messages)
   const answer = card.answer === null
-    ? card.error === null ? '<p class="card-inspector-pending">等待助手回复</p>' : ''
-    : `<article class="card-inspector-answer md">${renderMarkdown(card.answer.text)}${card.answer.pending ? '<p class="card-inspector-pending">正在回复</p>' : ''}</article>`
+    ? card.error !== null ? '' : `<p class="card-inspector-pending">${card.closed === true ? '本轮没有正文' : '等待助手回复'}</p>`
+    : card.answer.text.trim() === '' && card.answer.pending !== true
+      // A closed turn with no prose: the records below are the whole answer.
+      ? '<p class="card-inspector-pending">本轮没有正文</p>'
+      : `<article class="card-inspector-answer md">${renderMarkdown(card.answer.text)}${card.answer.pending ? '<p class="card-inspector-pending">正在回复</p>' : ''}</article>`
   const error = card.error === null ? '' : `<section class="card-inspector-error" role="alert"><strong>本轮未完成</strong><p>${escapeHtml(card.error.text)}</p></section>`
   // Tool calls are shown, not hidden behind one more fold: the drawer lists the
   // turn's calls under a 「工具调用」label, each row already open with its
