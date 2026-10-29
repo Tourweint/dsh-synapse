@@ -13,10 +13,13 @@ test('patches renders into the live tree instead of replacing the page', () => {
   assert.match(source, /function morphChildren\(from, to\)/)
   // The render entry point and the streaming answer both morph.
   assert.match(source, /morphInto\(app, `/)
-  assert.match(source, /morphInto\(summary, /)
+  // The live chunk patches the body paragraph's children, not the paragraph:
+  // morphing a node into markup that repeats that node would nest it.
+  assert.match(source, /morphInto\(body, /)
+  assert.match(source, /\.thread-card\.is-answer\[data-thread=/)
   // No wholesale assignment may come back.
   assert.doesNotMatch(source, /app\.innerHTML\s*=/)
-  assert.doesNotMatch(source, /summary\.innerHTML\s*=/)
+  assert.doesNotMatch(source, /body\.innerHTML\s*=/)
 })
 
 test('keys morph matching on the card and thread identities', () => {

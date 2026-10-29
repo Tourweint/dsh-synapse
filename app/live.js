@@ -102,17 +102,21 @@ function applyLiveReplyToCard(sessionId) {
   if (thread === undefined) return
   const live = state.liveReplies.get(sessionId)
   if (live?.running !== true) return
-  const cards = app.querySelectorAll(`.thread-card[data-thread="${CSS.escape(thread.id)}"]`)
+  // The answer card of the newest turn is the only place an unfinished reply may
+  // appear: the question above it never carries model text.
+  const cards = app.querySelectorAll(`.thread-card.is-answer[data-thread="${CSS.escape(thread.id)}"]`)
   const card = cards[cards.length - 1]
   if (!(card instanceof HTMLElement)) return
-  const summary = card.querySelector('.thread-card-body .thread-summary')
-  if (!(summary instanceof HTMLElement)) return
+  const body = card.querySelector('.thread-card-text')
+  if (!(body instanceof HTMLElement)) return
   const text = live.text
-  // Morph instead of replacing the subtree: the summary keeps its node, so a
-  // pointer that went down inside it still resolves to a click on release.
-  morphInto(summary, text.trim() === ''
-    ? '<p class="thread-summary is-pending">正在回复…</p>'
-    : `<p class="thread-summary">${escapeHtml(answerSummary(text))}<span class="thread-summary-streaming"> 正在回复…</span></p>`)
+  // Morph the paragraph's children instead of replacing the subtree: the body
+  // keeps its node, so a pointer that went down inside it still resolves to a
+  // click on release. The class describes the same state the full render does.
+  body.className = text.trim() === '' ? 'thread-card-text is-pending' : 'thread-card-text'
+  morphInto(body, text.trim() === ''
+    ? '正在回复…'
+    : `${escapeHtml(answerSummary(text))}<span class="thread-card-streaming">正在回复…</span>`)
 }
 function scheduleLiveRender() {
   if (liveRenderTimer !== 0 || !canReplaceView()) return
