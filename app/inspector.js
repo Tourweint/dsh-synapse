@@ -68,10 +68,11 @@ function renderCardInspector(card) {
       ? '<p class="card-inspector-pending">本轮没有正文</p>'
       : `<article class="card-inspector-answer md">${renderMarkdown(card.answer.text)}${card.answer.pending ? '<p class="card-inspector-pending">正在回复</p>' : ''}</article>`
   const error = card.error === null ? '' : `<section class="card-inspector-error" role="alert"><strong>本轮未完成</strong><p>${escapeHtml(card.error.text)}</p></section>`
-  // Tool calls are shown, not hidden behind one more fold: the drawer lists the
-  // turn's calls under a 「工具调用」label, each row already open with its
-  // arguments and result — the payload is the point, the row header only names it.
-  const processRecordsHtml = process.length === 0 ? '' : `<section class="card-inspector-process"><p class="card-inspector-section">工具调用</p>${processEntries(process, `${thread.id}:${card.id}:inspector`, { openByDefault: true })}</section>`
+  // Tool calls are listed, not spilled: the drawer names the turn's calls under
+  // a 「工具调用」label and each row opens on click. A long turn can hold dozens
+  // of calls whose payloads would bury the answer the drawer exists to show;
+  // the state dot + status word already say what happened without opening one.
+  const processRecordsHtml = process.length === 0 ? '' : `<section class="card-inspector-process"><p class="card-inspector-section">工具调用</p>${processEntries(process, `${thread.id}:${card.id}:inspector`)}</section>`
   const continueAction = card.canContinue === true ? `<button type="button" data-action="open-continue" data-thread="${thread.id}" data-card="${escapeHtml(card.id)}"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M2.5 3.5h11v7h-6l-3.5 2.5v-2.5h-1.5Z"/><path d="M8 5.5v3M6.5 7h3"/></svg>继续追问</button>` : ''
   const branch = Number.isInteger(card.answer?.sourceSeq)
     ? `<button type="button" data-action="open-branch" data-thread="${thread.id}" data-card="${escapeHtml(card.id)}" data-seq="${card.answer.sourceSeq}"><svg aria-hidden="true" viewBox="0 0 16 16"><circle cx="4" cy="3.5" r="1.5"/><circle cx="12" cy="3.5" r="1.5"/><circle cx="12" cy="12.5" r="1.5"/><path d="M5.5 3.5h2A2.5 2.5 0 0 1 10 6v5"/></svg>创建分支</button>`

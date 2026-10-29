@@ -108,10 +108,9 @@ const state = {
   archivedSessionIds: new Set(),
   draft: null, error: '', workspaceLoad: 0, branchAnchors: new Map(savedBranchAnchors), cardPositions: new Map(savedCardPositions), collapsedCardIds: new Set(savedCollapsedCards), expandedCardIds: new Set(savedExpandedCards), quickPhrases: savedQuickPhrases, quickPhraseEditorOpen: false,
   dragging: false, canvasGesture: false, canvasRefreshAfter: 0, canvasViewInitialized: false, canvasCamera: { x: 0, y: 0 }, mapCardSessionSwitches: new Set(),
+  // Folds the reader opened: process records, tool rows, the drawer's entries.
+  // Everything starts closed, so this only ever records what was opened.
   expandedMessageIds: new Set(),
-  // The inspector's tool rows are open by default, so what it stores is the
-  // opposite: the rows the reader explicitly closed.
-  collapsedProcessIds: new Set(),
   canvasCards: undefined, canvasCardsById: undefined, canvasGraph: undefined, mountedCardIds: new Set(), canvasNeedsCenter: false,
   detailScrollByThread: new Map(), detailThreadId: null, detailTargetCardId: null,
   inspectorCardId: null, inspectorOpening: false, inspectorScrollByCard: new Map(), inspectorWidth: savedInspectorWidth,

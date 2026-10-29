@@ -25,17 +25,21 @@ function processState(entry) {
 }
 
 /**
- * One row per tool call: name + status, plus its arguments and result.
- * `options.openByDefault` is what the inspector uses: the drawer is where a
- * turn's tool work is read, so a row arrives open and the reader folds what they
- * are done with. The detail view keeps the opt-in behaviour, because there the
- * rows sit inside the 过程记录 fold and would otherwise open twice.
+ * One row per tool call: a state dot, the tool name and its status, plus the
+ * arguments and result once the row is opened.
+ *
+ * Rows start folded everywhere — the same thing the host does with its own tool
+ * rows (`ui-tool/ToolRow` uses an opt-in disclosure) — because a turn can hold
+ * a hundred of them and an opened payload is taller than the answer. What tells
+ * the reader what happened without opening anything is the state colour: a 4px
+ * dot plus the status word, green / amber / red, copied from the host's
+ * `StateDot` tokens rather than from a tinted block, so the row still reads as
+ * a quiet line of text and not as a second card.
  */
-function processEntries(process, key, options = {}) {
-  const openByDefault = options.openByDefault === true
+function processEntries(process, key) {
   return process.map((entry, index) => {
     const entryKey = `${key}:${index}`
-    const open = openByDefault ? !state.collapsedProcessIds.has(entryKey) : state.expandedMessageIds.has(entryKey)
+    const open = state.expandedMessageIds.has(entryKey)
     const state_ = processState(entry)
     const status = state_ === 'failed' ? '失败' : state_ === 'pending' ? '等待结果' : '完成'
     const statusClass = state_ === 'failed' ? ' process-status-error' : state_ === 'pending' ? ' process-status-pending' : ' process-status-done'
@@ -55,8 +59,7 @@ function processEntries(process, key, options = {}) {
     const body = argumentsHtml === '' && outcome === ''
       ? '<p class="process-entry-empty">暂无参数与结果</p>'
       : argumentsHtml + outcome
-    const action = openByDefault ? 'toggle-process' : 'toggle-message'
-    return `<div class="process-entry${open ? ' expanded' : ''}"><button class="process-entry-fold" type="button" data-action="${action}" data-message="${escapeHtml(entryKey)}"><span class="process-entry-name">${escapeHtml(name)}</span><span class="process-status${statusClass}">${status}</span></button>${open ? `<div class="process-entry-body">${body}</div>` : ''}</div>`
+    return `<div class="process-entry process-entry-${state_}${open ? ' expanded' : ''}"><button class="process-entry-fold" type="button" data-action="toggle-message" data-message="${escapeHtml(entryKey)}" aria-expanded="${open}"><svg class="process-entry-chevron" aria-hidden="true" viewBox="0 0 16 16"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg><span class="process-entry-name">${escapeHtml(name)}</span><span class="process-entry-state"><span class="process-entry-dot" aria-hidden="true"></span><span class="process-status${statusClass}">${status}</span></span></button>${open ? `<div class="process-entry-body">${body}</div>` : ''}</div>`
   }).join('')
 }
 

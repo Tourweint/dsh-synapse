@@ -39,14 +39,14 @@
 .card-inspector-error { margin: 0; border-left: 3px solid var(--syn-danger); padding: 3px 0 3px 10px; color: var(--syn-danger); font-size: 13px; line-height: 1.65; }
 .card-inspector-error strong { display: block; color: var(--syn-danger); font-size: 12px; }
 .card-inspector-error p { margin: 5px 0 0; overflow-wrap: anywhere; white-space: pre-wrap; }
-/* 工具调用 is a quiet row list under the answer, not a fold that has to be
-   opened before anything exists: the drawer is where the turn's tool work is
-   read, so it is on screen from the start. */
+/* 工具调用 is a quiet row list under the answer: the list itself is always
+   visible (the drawer is where a turn's tool work is read), but the rows are
+   folded, because a long turn's payloads would bury the answer. */
 .card-inspector-process { margin-top: 20px; border-top: 1px solid var(--syn-line-soft); padding-top: 2px; }
 .card-inspector-process .card-inspector-section { margin: 10px 0 2px; }
-/* Each tool is a block, not a disclosure you have to go find: the header names
-   it and the payload follows in full. Nothing here is clipped or truncated —
-   long arguments and results wrap, and the drawer stays the only scroller. */
+/* Folded rows are rule-separated lines, not boxes; opening one lets its payload
+   follow in full. Nothing here is clipped or truncated — long arguments and
+   results wrap, and the drawer stays the only scroller. */
 .card-inspector-process .process-entry { margin-top: 0; border: 0; border-top: 1px solid var(--syn-line-soft); border-radius: 0; background: transparent; }
 .card-inspector-process .process-entry:last-child { padding-bottom: 2px; }
 .card-inspector-process .process-entry-fold { border-radius: 6px; padding: 7px 8px; font-size: 12px; }

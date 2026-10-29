@@ -522,7 +522,7 @@ async function loadProcessRecords() {
   const source = await pickApp('process')
   const context = {
     globalThis: {},
-    state: { expandedMessageIds: new Set(['m:process']), collapsedProcessIds: new Set() },
+    state: { expandedMessageIds: new Set(['m:process']) },
     escapeHtml: value => String(value).replace(/[&<>"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[character]),
   }
   vm.createContext(context)
@@ -539,10 +539,26 @@ test('renders a stored process entry by its status instead of failing every tool
     { name: 'edit', status: 'failed' },
   ], 'm')
 
-  assert.match(html, /pws<\/span><span class="process-status process-status-done">完成/)
-  assert.match(html, /read<\/span><span class="process-status process-status-pending">等待结果/)
-  assert.match(html, /edit<\/span><span class="process-status process-status-error">失败/)
+  assert.match(html, /pws<\/span><span class="process-entry-state"><span class="process-entry-dot" aria-hidden="true"><\/span><span class="process-status process-status-done">完成/)
+  assert.match(html, /read<\/span><span class="process-entry-state">.*?process-status-pending">等待结果/)
+  assert.match(html, /edit<\/span><span class="process-entry-state">.*?process-status-error">失败/)
   assert.doesNotMatch(html, /undefined/)
+})
+
+test('the folded row says what happened through its colour, not only its words', async () => {
+  const { processRecords } = await loadProcessRecords()
+
+  const html = processRecords([
+    { name: 'a', status: 'done' },
+    { name: 'b', status: 'pending' },
+    { name: 'c', status: 'failed' },
+  ], 'm')
+
+  // The state rides on the entry (so the dot can be tinted by CSS) and on the
+  // status word; no state ever reaches the row as a missing class.
+  assert.match(html, /class="process-entry process-entry-done(?: expanded)?">/)
+  assert.match(html, /class="process-entry process-entry-pending(?: expanded)?">/)
+  assert.match(html, /class="process-entry process-entry-failed(?: expanded)?">/)
 })
 
 test('still reads a v3-era process entry that only carries error and result', async () => {
@@ -554,40 +570,37 @@ test('still reads a v3-era process entry that only carries error and result', as
     { name: 'c', result: null, error: null },
   ], 'm')
 
-  assert.match(html, /a<\/span><span class="process-status process-status-done">完成/)
-  assert.match(html, /b<\/span><span class="process-status process-status-error">失败/)
-  assert.match(html, /c<\/span><span class="process-status process-status-pending">等待结果/)
+  assert.match(html, /a<\/span><span class="process-entry-state">.*?process-status-done">完成/)
+  assert.match(html, /b<\/span><span class="process-entry-state">.*?process-status-error">失败/)
+  assert.match(html, /c<\/span><span class="process-entry-state">.*?process-status-pending">等待结果/)
 })
 
-test('the drawer opens a tool row with its arguments and result on show', async () => {
-  const { processEntries } = await loadProcessRecords()
-
-  const html = processEntries([
-    { name: 'read_file', status: 'done', arguments: '{"path":"a"}', result: 'body' },
-  ], 'k', { openByDefault: true })
-
-  // No click, no expand state: a row the reader has not touched is open.
-  assert.match(html, /class="process-entry expanded"/)
-  assert.match(html, /data-action="toggle-process"/)
-  assert.match(html, /<p class="process-entry-label">参数<\/p><pre class="process-args">\{&quot;path&quot;:&quot;a&quot;\}<\/pre>/)
-  assert.match(html, /<p class="process-entry-label">结果<\/p><pre class="process-result">body<\/pre>/)
-})
-
-test('a drawer row the reader closed keeps its header and drops the payload', async () => {
+test('the drawer lists its tool rows folded, and opens one on demand', async () => {
   const { processEntries, state } = await loadProcessRecords()
-  state.collapsedProcessIds.add('k:0')
 
-  const html = processEntries([{ name: 'read_file', status: 'done', arguments: 'a', result: 'b' }], 'k', { openByDefault: true })
+  // Folded first: a long turn's payloads would otherwise bury the answer.
+  const folded = processEntries([
+    { name: 'read_file', status: 'done', arguments: '{"path":"a"}', result: 'body' },
+  ], 'k')
+  assert.doesNotMatch(folded, /process-entry-body/)
+  assert.match(folded, /aria-expanded="false"/)
+  assert.match(folded, /data-action="toggle-message"/)
 
-  assert.doesNotMatch(html, /process-entry-body/)
-  assert.doesNotMatch(html, / expanded"/)
-  assert.match(html, /read_file/)
+  state.expandedMessageIds.add('k:0')
+  const opened = processEntries([
+    { name: 'read_file', status: 'done', arguments: '{"path":"a"}', result: 'body' },
+  ], 'k')
+  assert.match(opened, /class="process-entry process-entry-done expanded"/)
+  assert.match(opened, /aria-expanded="true"/)
+  assert.match(opened, /<p class="process-entry-label">参数<\/p><pre class="process-args">\{&quot;path&quot;:&quot;a&quot;\}<\/pre>/)
+  assert.match(opened, /<p class="process-entry-label">结果<\/p><pre class="process-result">body<\/pre>/)
 })
 
 test('a row with no payload says so instead of looking truncated', async () => {
-  const { processEntries } = await loadProcessRecords()
+  const { processEntries, state } = await loadProcessRecords()
+  state.expandedMessageIds.add('k:0')
 
-  const html = processEntries([{ status: 'done' }], 'k', { openByDefault: true })
+  const html = processEntries([{ status: 'done' }], 'k')
 
   assert.match(html, /class="process-entry-name">工具调用<\/span>/)
   assert.match(html, /<p class="process-entry-empty">暂无参数与结果<\/p>/)

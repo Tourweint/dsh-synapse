@@ -43,9 +43,22 @@
 .process-records-fold:hover { background: var(--syn-surface-3); color: var(--syn-accent); }
 .process-count { display: grid; min-width: 20px; height: 20px; place-items: center; border-radius: 10px; background: var(--syn-line-soft); color: var(--syn-ink-2); font-size: 11px; font-weight: 720; }
 .process-entry { margin-top: 8px; border: 1px solid var(--syn-line-soft); border-radius: 6px; background: #fff; }
-.process-entry-fold { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: transparent; padding: 8px 10px; color: var(--syn-ink); font-size: 12px; text-align: left; }
+/* A tool row is still a quiet line of text, even though it now carries state
+   colour: chevron, name, then a 4px state dot + the status word at the right
+   edge — the shape the host's own tool rows use. */
+.process-entry-fold { display: flex; width: 100%; align-items: center; gap: 7px; border: 0; background: transparent; padding: 8px 10px; color: var(--syn-ink); font-size: 12px; text-align: left; }
 .process-entry-fold:hover { background: var(--syn-surface-2); }
-.process-entry-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.process-entry-chevron { width: 12px; height: 12px; flex: none; fill: none; stroke: var(--syn-ink-4); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; transition: transform .15s ease; }
+.process-entry.expanded .process-entry-chevron { transform: rotate(90deg); }
+.process-entry-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.process-entry-state { display: inline-flex; flex: none; align-items: center; gap: 5px; }
+/* The status colour is the whole signal when the row is folded, so it sits on a
+   dot (`StateDot` in the host: 4px, success / warn / error tokens) rather than
+   on a tinted block — a tool row must not read as a second card. */
+.process-entry-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--syn-ink-4); }
+.process-entry-done .process-entry-dot { background: var(--syn-ok); }
+.process-entry-pending .process-entry-dot { background: var(--syn-warn); }
+.process-entry-failed .process-entry-dot { background: var(--syn-danger); }
 .process-status { flex: none; font-size: 11px; }
 .process-status-done { color: var(--syn-ok); }
 .process-status-pending { color: var(--syn-warn); }

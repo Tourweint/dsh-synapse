@@ -167,7 +167,7 @@ vm 切片要显式列出模块（`pickApp('text', 'markdown')`），所以改模
 ### 过程记录 / 工具调用
 
 - **对话里**：一条折叠行 `.message-fold`（chevron + 摘要），展开才渲染 `.message-body`，行本身不画底色。
-- **右侧详情面板里**：`.card-inspector-process` 默认可见**而且默认展开**——每个工具一块（等宽工具名 + 状态 + 「参数」/「结果」两段全文），不截断、不内嵌滚动，抽屉是唯一滚动条；点行头只是收起，`state.collapsedProcessIds` 记的是被关掉的那些。没有 payload 的旧记录写「暂无参数与结果」，不要留一行空白让人以为渲染坏了。
+- **右侧详情面板里**：`.card-inspector-process` 的**列表**默认可见，但**每一条默认收起**（和宿主 `ui-tool/ToolRow` 一样是 opt-in 展开）——一轮可能有上百次调用，全展开会把抽屉里要读的答复挤到屏幕外。收起行只有：chevron + 等宽工具名 + 右侧状态（4px 色点 + 状态词，绿 / 橙 / 红，抄宿主的 `StateDot`）；点行头才展开「参数」/「结果」两段全文，不截断、不内嵌滚动，抽屉是唯一滚动条。展开的是 `state.expandedMessageIds`（全部折叠态只记被打开的那些，`collapsedProcessIds` 已删）。没有 payload 的旧记录写「暂无参数与结果」，不要留一行空白让人以为渲染坏了。
 
 ## Markdown 与代码块
 

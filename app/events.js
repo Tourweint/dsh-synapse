@@ -273,8 +273,6 @@ app.addEventListener('click', async event => {
     }
     if (button.dataset.action === 'cancel-draft') { state.draft = null; state.quickPhraseEditorOpen = false; render() }
     if (button.dataset.action === 'toggle-message' && button.dataset.message !== undefined) { state.expandedMessageIds.has(button.dataset.message) ? state.expandedMessageIds.delete(button.dataset.message) : state.expandedMessageIds.add(button.dataset.message); renderPreservingDetailScroll() }
-    // Inspector rows are open by default, so toggling records the closed ones.
-    if (button.dataset.action === 'toggle-process' && button.dataset.message !== undefined) { state.collapsedProcessIds.has(button.dataset.message) ? state.collapsedProcessIds.delete(button.dataset.message) : state.collapsedProcessIds.add(button.dataset.message); renderPreservingDetailScroll() }
     if (button.dataset.action === 'open-dsh' && thread?.dshSessionId !== null) post('synapse:open-session', { sessionId: thread.dshSessionId, seq: Number.isInteger(Number(button.dataset.seq)) ? Number(button.dataset.seq) : undefined })
     if (button.dataset.action === 'archive-thread' && thread !== undefined) await archiveThread(thread)
     if (button.dataset.action === 'focus-active') focusActiveCard()

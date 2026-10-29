@@ -212,30 +212,34 @@ check('代码块按语法着色', codeBlock?.querySelector('.tok-key') !== null
   && codeBlock?.querySelector('.tok-num') !== null, codeBlock?.innerHTML ?? '')
 check('着色后原文不变', codeBlock?.querySelector('code')?.textContent === 'const answer = 42', codeBlock?.textContent ?? '')
 
-// 2b2. The turn's tool calls are part of the drawer, and their payloads are on
-//      screen without a click: name + status + arguments + result, nothing cut.
+// 2b2. The turn's tool calls are listed in the drawer, one folded row each:
+//      the line carries the name and a state colour, the payload waits for a
+//      click (a long turn's payloads would otherwise bury the answer).
 const toolRows = () => document.querySelectorAll('.card-inspector-process .process-entry')
 check('详情底部列出「工具调用」', document.querySelector('.card-inspector-process') !== null)
-check('工具条目默认就显示出来', toolRows().length === 2, `${toolRows().length} rows`)
+check('工具条目都列出来', toolRows().length === 2, `${toolRows().length} rows`)
 const toolFold = document.querySelector('.card-inspector-process .process-entry-fold')
 check('工具行带名字与状态', toolFold !== null && toolFold.textContent.includes('read_file'), toolFold?.textContent ?? '')
-check('工具参数默认可见', document.querySelector('.card-inspector-process .process-args')?.textContent === '{"path":"README.md"}',
-  document.querySelector('.card-inspector-process .process-args')?.textContent ?? 'missing')
-check('工具结果默认可见且完整', document.querySelector('.card-inspector-process .process-result')?.textContent === 'readme body line one\nreadme body line two',
-  document.querySelector('.card-inspector-process .process-result')?.textContent ?? 'missing')
-check('参数与结果都带标签', toolRows()[0]?.textContent.includes('参数') === true && toolRows()[0]?.textContent.includes('结果') === true,
-  toolRows()[0]?.textContent ?? '')
+check('工具行默认是收起的', toolRows()[0]?.classList.contains('expanded') === false
+  && toolRows()[0]?.querySelector('.process-args') === null, toolRows()[0]?.className ?? '')
+// The status is what the folded line has to say, so it must be colour-coded
+// (state class for the dot + the status word), not just a grey label.
+check('状态用颜色区分', toolRows()[0]?.classList.contains('process-entry-done') === true
+  && toolRows()[0]?.querySelector('.process-entry-dot') !== null, toolRows()[0]?.className ?? '')
 if (toolFold instanceof window.HTMLElement) {
   toolFold.dispatchEvent(new window.MouseEvent('click', { bubbles: true, detail: 1 }))
   await wait(120)
-  // Scope to the first row: the second tool has a payload of its own and would
-  // answer this query no matter what the first row did.
-  check('点行头可以收起', toolRows()[0]?.classList.contains('expanded') === false
-    && toolRows()[0]?.querySelector('.process-args') === null, toolRows()[0]?.className ?? '')
+  check('点行头展开参数', document.querySelector('.card-inspector-process .process-args')?.textContent === '{"path":"README.md"}',
+    document.querySelector('.card-inspector-process .process-args')?.textContent ?? 'missing')
+  check('展开后结果完整', document.querySelector('.card-inspector-process .process-result')?.textContent === 'readme body line one\nreadme body line two',
+    document.querySelector('.card-inspector-process .process-result')?.textContent ?? 'missing')
+  check('参数与结果都带标签', toolRows()[0]?.textContent.includes('参数') === true && toolRows()[0]?.textContent.includes('结果') === true,
+    toolRows()[0]?.textContent ?? '')
   toolRows()[0]?.querySelector('.process-entry-fold')
     ?.dispatchEvent(new window.MouseEvent('click', { bubbles: true, detail: 1 }))
   await wait(120)
-  check('再点又展开', toolRows()[0]?.querySelector('.process-args') !== null)
+  check('再点又收起', toolRows()[0]?.classList.contains('expanded') === false
+    && toolRows()[0]?.querySelector('.process-args') === null, toolRows()[0]?.className ?? '')
 }
 
 // 2c. The drawer's left edge resizes it: drag LEFT widens, and the width stops
