@@ -55,15 +55,16 @@
 .sidebar-heading { display: flex; align-items: center; justify-content: space-between; margin: 23px 4px 0; padding: 0; }
 .sidebar-heading button { display: grid; width: 24px; min-height: 24px; place-items: center; padding: 0; color: var(--syn-ink); font-size: 17px; }
 .thread-tree { display: grid; min-height: 0; flex: 1 1 auto; align-content: start; gap: 3px; overflow: auto; padding-bottom: 12px; }
-.tree-row { display: flex; min-width: 0; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--syn-ink-2); text-align: left; transition: transform 220ms cubic-bezier(.34,1.3,.64,1), background-color 150ms ease; }
+/* No colour dot: a session row is a line of text, and the dot's only job was to
+   repeat the thread colour that the cards already carry. The left indent it and
+   the flex gap used to make (8 + 8) stays as padding, so titles keep their x. */
+.tree-row { display: flex; min-width: 0; align-items: center; gap: 8px; border: 0; background: transparent; padding: 0 11px 0 27px; color: var(--syn-ink-2); text-align: left; transition: transform 220ms cubic-bezier(.34,1.3,.64,1), background-color 150ms ease; }
 .tree-row:hover { background: var(--syn-surface-3); }
 /* Press reads as a physical push (scale), not only a colour swap. */
 .tree-row:active { transform: scale(.98); transition: transform 120ms cubic-bezier(.16,1,.3,1), background-color 150ms ease; }
 .tree-row.active { background: var(--syn-surface-3); color: var(--syn-ink); font-weight: 650; }
-.tree-row span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.tree-row .tree-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .tree-row i { margin-left: auto; color: var(--syn-ink-4); font-size: 10px; font-style: normal; }
-.tree-dot, .topic-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--thread-color, var(--syn-ink-2)); }
-.tree-row { --thread-color: var(--syn-accent) !important; }
 .tree-empty { padding: 12px 5px; color: var(--syn-ink-4); font-size: 12px; }
 /* The conversation surface is the only raised/rounded thing in the frame, and it
    rounds ONE corner: the host sets `border-radius: 16px 0 0 0` plus

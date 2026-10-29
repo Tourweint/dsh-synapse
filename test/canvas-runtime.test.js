@@ -228,6 +228,23 @@ test('selecting a session in the sidebar syncs the DSH current session', async (
   assert.match(selectThread, /synapse:activate-session/)
 })
 
+test('a sidebar session row is text only, and keeps the dot indent', async () => {
+  const source = await readAppSource()
+  const row = source.slice(source.indexOf('class="tree-row'), source.indexOf('class="tree-empty'))
+
+  // The colour dot restated the card colour for no information, so the row is
+  // one title. What must not change is where that title starts.
+  assert.doesNotMatch(row, /tree-dot/)
+  assert.match(row, /class="tree-title"/)
+
+  const chrome = await readFile(new URL('../styles/chrome.css', import.meta.url), 'utf8')
+  const rule = /\.tree-row \{([^}]*)\}/.exec(chrome)
+  assert.ok(rule !== null, 'the row rule is declared')
+  // 11px button padding + the removed 8px dot + its 8px flex gap.
+  assert.match(rule[1], /padding: 0 11px 0 27px/)
+  assert.doesNotMatch(chrome, /tree-dot/)
+})
+
 test('clicking a session card syncs the DSH current session', async () => {
   const source = await readAppSource()
   const cardClick = source.slice(source.indexOf('if (!(button instanceof HTMLElement)) {'), source.indexOf("if (button.dataset.action === 'close')"))
