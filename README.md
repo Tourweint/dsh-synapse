@@ -45,18 +45,26 @@
 
 | 你平时怎么用 DSH | 要装的 profile | 安装命令 |
 |---|---|---|
-| 桌面 App（DeepSeek Harness 客户端） | `desktop` | `corepack pnpm dsh plugin --profile desktop add dsh-synapse` |
-| 命令行 `dsh web` / 浏览器访问 | `web` | `corepack pnpm dsh plugin --profile web add dsh-synapse` |
-| 两种都用 | 两套各装一次 | 两条命令都执行 |
+| 桌面 App（DeepSeek Harness 客户端） | `desktop` | `dsh plugin --profile desktop add dsh-synapse` |
+| 命令行 `dsh web` / 浏览器访问（如果你也维护了这套） | `web` | `dsh plugin --profile web add dsh-synapse` |
 
 - 从 App 内的插件页面安装时，App 会自动装进它自己用的那套，不用管 profile。
-- **自检口诀：装完顶部看不到「会话地图」开关，就是装到另一套去了**，换成另一条命令再装一次即可。
+- **自检口诀：装完顶部看不到「会话地图」开关，就是装到另一套去了**，把 `--profile` 换成另一套的名字再装一次即可。
 - 桌面 App 装完需要**重启 App**（Host 侧插件在启动时加载）；命令行装的，重启 `dsh web` 并刷新页面。
 
+`dsh` 是 DSH 运行时自带的 launcher，位于 App 安装目录的 `resources\runtime\cli\bin\dsh.cmd`。先确认它能调用：
+
 ```powershell
-# 命令行方式：装好后启动
-corepack pnpm dsh plugin --profile web add dsh-synapse
-corepack pnpm dsh web
+dsh --version
+```
+
+```powershell
+# 装进桌面 App 那套 profile
+dsh plugin --profile desktop add dsh-synapse
+
+# 需要命令行形态时（装完重启 dsh web 并刷新页面）
+dsh plugin --profile web add dsh-synapse
+dsh web
 ```
 
 启动后，在 DSH 顶部切换到 **会话地图**。Synapse 复用现有的 DSH Web Server，不会启动第二个应用或代理系统。
@@ -69,10 +77,28 @@ corepack pnpm dsh web
 | 保留真实分支 | 按 DSH 原生 fork 关系连接卡片，不制造另一套会话历史。 |
 | 追问更顺手 | 选中回答中的文字可直接带入新的追问；常用补充词可编辑。 |
 | 双向同步 | 在地图或 DSH 原生对话中切换会话，当前上下文保持一致。 |
+| 过程不挡路 | 工具调用与结果按 `callId` 折叠进对应回答，只显示「工具 N」。 |
+| 可移动入口 | 顶部「对话 / 会话地图」开关可拖动、记忆位置、双击复位。 |
+| 详情侧栏 | 点卡片在右侧展开整轮详情：完整回答、工具过程、追问 / 分支 / 打开 DSH。 |
+| 归档一致 | 归档在地图与 DSH 侧栏之间共用同一份集合，不会各记一套。 |
+
+## 最近更新
+
+**0.6.0**
+
+- 画布与详情页按 DSH 宿主规格重做：一个 turn 成对的两张卡、详情页是一列对话、工具记录按 turn 折叠。
+- 顶部开关可拖动、记忆位置（按浏览器）、双击复位、方向键微调，并保证不会被拖到屏幕外。
+- 交互与渲染一致性修正：切会话会把该会话带入视野；折叠卡片不再移动画布；正文里有选区时侧栏与详情仍能更新；卡片右侧折叠 / 分支按钮不再被相邻卡片遮住。
+- 工作区加载竞态修正：切换工作区不再被后台轮询顶掉；画布只在数据真变化时重建（此前每秒重建数次）。
+- `workspaces.json` 读不出来时**明确报错并保持只读**，不再用旧备份覆盖原文件，错误信息里带上要修的文件路径。
+
+历史版本见[提交记录](https://github.com/Tourweint/dsh-synapse/commits/main)。
 
 ## 从原生对话进入
 
 在 DSH 原生对话中，通过顶部的 **会话地图** 进入 Synapse；返回 **对话** 后，仍是同一个 DSH 会话。
+
+这个开关挡着内容时可以挪走：**按住左侧六点手柄拖动**，位置按浏览器记住；**双击手柄**复位；手柄聚焦后可用方向键微调。
 
 ![DSH 原生对话与会话地图入口](docs/images/native-webui.jpg)
 

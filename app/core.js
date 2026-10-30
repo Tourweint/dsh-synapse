@@ -106,7 +106,10 @@ const state = {
   // screenful and cached here (issue #42).
   bodies: new Map(), bodyRequests: new Set(), bodyFailures: new Set(), bodiesLoaded: new Set(),
   archivedSessionIds: new Set(),
-  draft: null, error: '', workspaceLoad: 0, branchAnchors: new Map(savedBranchAnchors), cardPositions: new Map(savedCardPositions), collapsedCardIds: new Set(savedCollapsedCards), expandedCardIds: new Set(savedExpandedCards), quickPhrases: savedQuickPhrases, quickPhraseEditorOpen: false,
+  // `workspaceLoad*` makes loading single-flight and lets a user's switch win
+  // over the 1s poll; the two signatures/fingerprint let a rebuilt payload be
+  // skipped when nothing the canvas draws actually changed.
+  draft: null, error: '', workspaceLoad: 0, workspaceLoadOwner: null, workspaceLoadBusy: false, workspaceFingerprint: null, workspacesSignature: null, branchAnchors: new Map(savedBranchAnchors), cardPositions: new Map(savedCardPositions), collapsedCardIds: new Set(savedCollapsedCards), expandedCardIds: new Set(savedExpandedCards), quickPhrases: savedQuickPhrases, quickPhraseEditorOpen: false,
   dragging: false, canvasGesture: false, canvasRefreshAfter: 0, canvasViewInitialized: false, canvasCamera: { x: 0, y: 0 }, mapCardSessionSwitches: new Set(),
   // Folds the reader opened: process records, tool rows, the drawer's entries.
   // Everything starts closed, so this only ever records what was opened.

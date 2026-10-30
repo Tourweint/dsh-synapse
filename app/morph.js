@@ -61,14 +61,17 @@ function morphNode(from, to) {
   if (!(from instanceof Element) || !(to instanceof Element) || from.tagName !== to.tagName) {
     return replaceMorphed(from, to)
   }
-  if (morphHoldsCaret(from)) return from
+  // Attributes are always patched, even on the node that owns the caret: a
+  // frozen attribute set is how a clicked control used to keep the previous
+  // render's class/aria while everything around it moved on. Only the children
+  // of the text holder must survive.
   for (const attribute of [...from.attributes]) {
     if (!to.hasAttribute(attribute.name)) from.removeAttribute(attribute.name)
   }
   for (const attribute of [...to.attributes]) {
     if (from.getAttribute(attribute.name) !== attribute.value) from.setAttribute(attribute.name, attribute.value)
   }
-  morphChildren(from, to)
+  if (!morphHoldsCaret(from)) morphChildren(from, to)
   return from
 }
 

@@ -17,23 +17,28 @@ DSH installs plugins per profile. Each profile keeps its own plugin list and `no
 | How you run DSH | Profile to use |
 |---|---|
 | Desktop app (DeepSeek Harness client) | `desktop` |
-| `dsh web` on the command line | `web` |
-| Both | Install once per profile |
+| `dsh web` on the command line (if you keep that profile) | `web` |
 
 - Installing from the app's plugin page already targets the profile the app uses, so you do not pick one there.
-- **Quick self-check: if the "会话地图 / Session map" switch never appears, the plugin went into the other profile** — run the other command and install again.
+- **Quick self-check: if the "会话地图 / Session map" switch never appears, the plugin went into the other profile** — install again with the other `--profile`.
 - A desktop install takes effect after **restarting the app**; a command-line install takes effect after restarting `dsh web` and refreshing the page.
 
 ## Installation
+
+`dsh` is the launcher that ships with the DSH runtime, at `resources\runtime\cli\bin\dsh.cmd` inside the app directory. Check that it responds first:
+
+```powershell
+dsh --version
+```
 
 ### Install from npm
 
 ```powershell
 # Desktop app
-corepack pnpm dsh plugin --profile desktop add dsh-synapse
+dsh plugin --profile desktop add dsh-synapse
 
-# Command line (dsh web)
-corepack pnpm dsh plugin --profile web add dsh-synapse
+# Command line (only if you keep a web profile)
+dsh plugin --profile web add dsh-synapse
 ```
 
 The npm package ships prebuilt code, so no build-script permission is needed — the simplest install. GitHub and local-checkout routes below are alternatives.
@@ -41,7 +46,7 @@ The npm package ships prebuilt code, so no build-script permission is needed —
 ### Install from GitHub
 
 ```powershell
-corepack pnpm dsh plugin --profile web add github:liangmianya/dsh-synapse
+dsh plugin --profile desktop add github:liangmianya/dsh-synapse
 ```
 
 GitHub installs run the package `prepare` script, which validates JavaScript syntax with `node --check`.
@@ -60,7 +65,7 @@ Use the complete key containing the tarball URL and commit, not the bare package
 ### Install a local checkout
 
 ```powershell
-corepack pnpm dsh plugin --profile web add link:E:\path\to\dsh-synapse
+dsh plugin --profile desktop add link:E:\path\to\dsh-synapse
 ```
 
 The `link:` form references the local checkout directly and is recommended for development. In a normal run, restart the host (the desktop app or `dsh web`) and refresh the page after editing the plugin.
@@ -68,7 +73,7 @@ The `link:` form references the local checkout directly and is recommended for d
 ## Start DSH Web
 
 ```powershell
-corepack pnpm dsh web
+dsh web
 ```
 
 Default address:
@@ -80,7 +85,7 @@ http://127.0.0.1:3080/
 Let DSH choose a free port when 3080 is occupied:
 
 ```powershell
-corepack pnpm dsh web --port 0
+dsh web --port 0
 ```
 
 Open the top **Session Map** switch after startup. Do not run two `dsh web` processes that share the same profile.
@@ -107,6 +112,23 @@ The canvas supports:
 - One-click focus on the current session.
 - Markdown rendering in the detail panel: headings, lists, task lists, quotes, rules, fenced code, tables and links.
 - Folding tool calls and results into the related assistant answer by `callId`.
+
+The **Dialogue / Session Map** switch can be moved too:
+
+- Drag it by the six-dot grip on its left edge; the position is remembered per browser.
+- Double-click the grip to return it to its shipped seat (centred under the window chrome).
+- With the grip focused, the arrow keys nudge it by 8px.
+- It always keeps an 8px grab margin from the viewport edges, so shrinking the window cannot strand it off screen.
+
+## Recent changes
+
+**0.6.0**
+
+- The canvas and the details pane are rebuilt against DSH's own specs: one turn is a pair of cards, the details pane is a single column of conversation, and tool calls fold per turn, with card/sidebar sizes and motion matching the host.
+- The top switch is draggable, remembers where you left it, and resets on a double-click (from upstream 0.5.6).
+- Interaction and rendering consistency: switching a conversation now brings it into view; folding a card no longer moves the canvas; a text selection in an answer no longer freezes the sidebar and the details panel; the fold/branch buttons on a card's right edge are no longer covered by the neighbouring card.
+- Workspace switching no longer races the background poll, and the canvas is rebuilt only when data actually changes instead of several times a second.
+- An unreadable `workspaces.json` now fails loudly and read-only: no old backup is written over it, and the real reason reaches the banner instead of a generic notice.
 
 ## Configuration
 
@@ -139,7 +161,7 @@ Add the actual host to `trustedHosts` when exposing DSH on a LAN.
 Remove the plugin:
 
 ```powershell
-corepack pnpm dsh plugin --profile web remove dsh-synapse
+dsh plugin --profile web remove dsh-synapse
 ```
 
 `remove` deletes the dependency and profile activation layer but keeps canvas data. Reinstalling reuses and migrates the old data when necessary.

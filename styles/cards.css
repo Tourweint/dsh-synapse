@@ -16,7 +16,12 @@
    must change with any of those numbers, or text gets sliced. */
 .thread-card { position: absolute; display: flex; width: 252px; height: 92px; flex-direction: column; border: 1px solid var(--syn-line); border-radius: 9px; background: var(--syn-surface); padding: 8px 12px; box-shadow: 0 1px 2px rgba(33,48,67,.05), 0 3px 10px rgba(33,48,67,.06); cursor: grab; overflow: visible; transition: box-shadow 160ms ease, border-color 160ms ease; user-select: none; -webkit-user-select: none; }
 .thread-card.expanded { height: 188px; }
-.thread-card:hover { border-color: var(--syn-line-strong); box-shadow: 0 2px 5px rgba(33,48,67,.07), 0 10px 22px rgba(33,48,67,.11); }
+/* The edge controls hang outside the card (`right: -10px`), so a card that comes
+   later in DOM order used to paint its own body over that overhang and steal the
+   click — folding worked on some cards and silently did nothing on others. The
+   hovered/focused card is lifted above its siblings so the whole button stays
+   hit-testable. */
+.thread-card:hover, .thread-card:focus-within { z-index: 3; border-color: var(--syn-line-strong); box-shadow: 0 2px 5px rgba(33,48,67,.07), 0 10px 22px rgba(33,48,67,.11); }
 .thread-card.is-dragging { cursor: grabbing; box-shadow: 0 10px 26px rgba(33,48,67,.2); }
 .thread-card.selected { box-shadow: 0 0 0 2px rgba(15,17,21,.16), 0 10px 22px rgba(33,48,67,.12); }
 /* A question is your input, not a result: flat and tinted, so the pair reads as

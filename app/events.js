@@ -231,6 +231,10 @@ app.addEventListener('click', async event => {
       state.error = ''
       if (state.workspace !== null) revealConversationThread(conversationCards(state.workspace.threads), thread.id)
       render()
+      // The state switch is instant, so the map has to show it: without this the
+      // camera stayed on the previous conversation's cards (often thousands of
+      // pixels away), and a click that worked looked like a dead button.
+      window.requestAnimationFrame(() => { if (state.mode === 'canvas') focusActiveCard() })
       void loadThreadHistory(thread)
       // Bidirectional current-session sync: switch DSH's current session
       // without closing the map; the client confirms via synapse:current-session.
@@ -257,12 +261,17 @@ app.addEventListener('click', async event => {
         const visibleIds = new Set(visibleCards.map(card => card.id))
         const draftParentId = draftPlacement(allCards)?.parent.id
         if (draftParentId !== undefined && !visibleIds.has(draftParentId)) return setError('请先完成或取消正在编辑的追问或分支')
-        if (state.activeId !== null && !visibleCards.some(card => card.dshThreadId === state.activeId)) return setError('当前会话位于这个后续分支中，请先切换会话')
+        // Collapsing is a view operation, so it is never refused: it used to be
+        // blocked whenever the active conversation would be hidden, which made
+        // "−" look dead on exactly the newest card people press it on.
       }
       collapsing ? state.collapsedCardIds.add(cardId) : state.collapsedCardIds.delete(cardId)
       persistCollapsedCards()
+      // Keep the viewport exactly where it is: folding is about hiding a
+      // subtree, not about re-framing the canvas. Focus the handle without
+      // scrolling for a11y.
       render()
-      window.setTimeout(() => document.querySelector(`[data-action="toggle-card-children"][data-card="${selectorValue(cardId)}"]`)?.focus(), 0)
+      window.setTimeout(() => document.querySelector(`[data-action="toggle-card-children"][data-card="${selectorValue(cardId)}"]`)?.focus({ preventScroll: true }), 0)
     }
     if (button.dataset.action === 'open-continue' && thread !== undefined) openContinue(thread, button.dataset.card)
     if (button.dataset.action === 'open-branch' && thread !== undefined) {
@@ -341,7 +350,7 @@ async function switchWorkspace(choice) {
   if (choice.source === 'dsh') {
     // Map → native sync: switching workspaces moves DSH's current session to
     // the workspace's most recently updated session, keeping both sides in step.
-    const opened = await openDshWorkspace(choice.id)
+    const opened = await openDshWorkspace(choice.id, { userInitiated: true })
     if (!opened) return
     const threads = state.workspace?.threads ?? []
     const latest = threads

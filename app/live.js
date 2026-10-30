@@ -16,10 +16,19 @@ window.addEventListener('message', event => {
     document.documentElement.dataset.theme = data.dark === true ? 'dark' : 'light'
   }
   if (data.type === 'synapse:workspaces') {
-    state.dshWorkspaces = Array.isArray(data.workspaces) ? data.workspaces.filter(workspace => typeof workspace?.id === 'string' && typeof workspace.title === 'string' && Array.isArray(workspace.sessionIds)) : []
+    const nextWorkspaces = Array.isArray(data.workspaces) ? data.workspaces.filter(workspace => typeof workspace?.id === 'string' && typeof workspace.title === 'string' && Array.isArray(workspace.sessionIds)) : []
     // DSH owns the archive set; mirror it so an archived session stops drawing
     // cards here too (issue #21 / #19).
-    state.archivedSessionIds = new Set(Array.isArray(data.archivedSessionIds) ? data.archivedSessionIds.filter(id => typeof id === 'string') : [])
+    const nextArchived = new Set(Array.isArray(data.archivedSessionIds) ? data.archivedSessionIds.filter(id => typeof id === 'string') : [])
+    // The parent re-sends this on every session-list change, i.e. on every
+    // streamed chunk. Acting on an unchanged payload re-ran a whole workspace
+    // load and rebuilt the canvas several times a second, which is what made
+    // clicking feel unresponsive and switching workspaces feel stalled.
+    const signature = JSON.stringify([nextWorkspaces, [...nextArchived].sort()])
+    if (signature === state.workspacesSignature) return
+    state.workspacesSignature = signature
+    state.dshWorkspaces = nextWorkspaces
+    state.archivedSessionIds = nextArchived
     const current = currentDshWorkspace()
     if (current !== undefined && current.id !== state.selectedDshWorkspaceId) void openDshWorkspace(current.id).catch(setError)
     else if (state.selectedDshWorkspaceId !== null) void openDshWorkspace(state.selectedDshWorkspaceId).catch(setError)
@@ -27,7 +36,9 @@ window.addEventListener('message', event => {
   }
   if (data.type === 'synapse:current-session') {
     const previousId = state.currentDsh?.id
+    const previousSignature = sessionSignature(state.currentDsh)
     state.currentDsh = data.session
+    const nextSignature = sessionSignature(data.session)
     const preserveCanvasCamera = previousId !== data.session?.id && state.mapCardSessionSwitches.delete(data.session?.id)
     const thread = currentDshThread()
     if (thread !== undefined) {
@@ -51,7 +62,10 @@ window.addEventListener('message', event => {
         }
       }).catch(setError)
     }
-    else if (canReplaceView()) render()
+    // Only the fields the canvas draws matter here: the parent re-sends this
+    // message for every streamed chunk, and re-rendering on each one queued a
+    // full rebuild behind every click.
+    else if (previousSignature !== nextSignature && canReplaceView()) render()
   }
   if (data.type === 'synapse:live-reply' && typeof data.sessionId === 'string') {
     const thread = state.workspace?.threads.find(item => item.dshSessionId === data.sessionId)

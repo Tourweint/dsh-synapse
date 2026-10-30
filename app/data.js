@@ -35,6 +35,12 @@ function currentDshThread(threads = state.workspace?.threads ?? []) {
   return typeof id === 'string' ? threads.find(thread => thread.dshSessionId === id) : undefined
 }
 
+/** Only the session fields the canvas actually draws; used to skip no-op renders. */
+function sessionSignature(session) {
+  if (session === null || session === undefined) return ''
+  return [session.id ?? '', session.title ?? session.displayTitle ?? '', session.cwd ?? '', session.running === true ? '1' : '0'].join('|')
+}
+
 function workspaceChoices() {
   if (state.dshWorkspaces.length > 0) return state.dshWorkspaces.map(workspace => ({ ...workspace, source: 'dsh' }))
   return state.summaries.map(workspace => ({ id: workspace.id, title: workspace.title, path: workspace.cwd, sessionIds: [], source: 'projection' }))
@@ -47,23 +53,38 @@ async function threadsForDshWorkspace(workspace) {
   return projections.flatMap(projection => projection.workspace.threads.filter(thread => requested.has(thread.dshSessionId)))
 }
 
-async function openDshWorkspace(id, { renderAfter = true, preserveCanvasCamera = false } = {}) {
+async function openDshWorkspace(id, { renderAfter = true, preserveCanvasCamera = false, userInitiated = false } = {}) {
   const workspace = state.dshWorkspaces.find(item => item.id === id)
   if (workspace === undefined) return false
+  // A background poll must never cancel or pre-empt a workspace the user just
+  // picked, and two polls must never run at once: the 1s poll used to open a
+  // fresh whole-workspace load every tick, each one cancelling the previous
+  // ticket, so nothing ever rendered (16 loads / 12 cancellations in 19s).
+  if (!userInitiated && (state.workspaceLoadOwner === 'user' || state.workspaceLoadBusy)) return false
   const load = ++state.workspaceLoad
-  state.selectedDshWorkspaceId = id
-  const threads = await threadsForDshWorkspace(workspace)
-  if (load !== state.workspaceLoad) return true
-  const nextWorkspaceId = `dsh:${workspace.id}`
-  if (state.workspace?.id !== nextWorkspaceId && !preserveCanvasCamera) resetCanvasCamera()
-  state.workspace = { id: nextWorkspaceId, title: workspace.title, cwd: workspace.path, threads }
-  const currentThread = currentDshThread(state.workspace.threads)
-  state.activeId = currentThread?.id ?? (state.workspace.threads.some(thread => thread.id === state.activeId) ? state.activeId : state.workspace.threads[0]?.id ?? null)
-  if (currentThread !== undefined) revealConversationThread(conversationCards(state.workspace.threads), currentThread.id)
-  if (renderAfter && canReplaceView()) render()
-  await Promise.all(state.workspace.threads.map(thread => loadThreadHistory(thread, false)))
-  if (renderAfter && load === state.workspaceLoad && canReplaceView()) render()
-  return true
+  if (userInitiated) state.workspaceLoadOwner = 'user'
+  state.workspaceLoadBusy = true
+  try {
+    state.selectedDshWorkspaceId = id
+    const threads = await threadsForDshWorkspace(workspace)
+    if (load !== state.workspaceLoad) return true
+    const nextWorkspaceId = `dsh:${workspace.id}`
+    if (state.workspace?.id !== nextWorkspaceId && !preserveCanvasCamera) resetCanvasCamera()
+    state.workspace = { id: nextWorkspaceId, title: workspace.title, cwd: workspace.path, threads }
+    state.workspaceFingerprint = JSON.stringify(state.workspace)
+    const currentThread = currentDshThread(state.workspace.threads)
+    state.activeId = currentThread?.id ?? (state.workspace.threads.some(thread => thread.id === state.activeId) ? state.activeId : state.workspace.threads[0]?.id ?? null)
+    if (currentThread !== undefined) revealConversationThread(conversationCards(state.workspace.threads), currentThread.id)
+    if (renderAfter && canReplaceView()) render()
+    await Promise.all(state.workspace.threads.map(thread => loadThreadHistory(thread, false)))
+    if (renderAfter && load === state.workspaceLoad && canReplaceView()) render()
+    // After a user switch, bring that workspace's active conversation on screen.
+    if (userInitiated && load === state.workspaceLoad) window.requestAnimationFrame(() => { if (state.mode === 'canvas') focusActiveCard() })
+    return true
+  } finally {
+    state.workspaceLoadBusy = false
+    if (userInitiated && load === state.workspaceLoad) state.workspaceLoadOwner = null
+  }
 }
 
 async function openCurrentWorkspace({ preserveCanvasCamera = false } = {}) {
@@ -92,15 +113,39 @@ async function openWorkspace(id, { renderAfter = true } = {}) {
   if (load !== state.workspaceLoad) return
   if (state.workspace?.id !== body.workspace.id) resetCanvasCamera()
   state.workspace = body.workspace
+  state.workspaceFingerprint = JSON.stringify(state.workspace)
   state.activeId = state.workspace.threads.some(thread => thread.id === state.activeId) ? state.activeId : state.workspace.threads[0]?.id ?? null
   if (renderAfter && canReplaceView()) render()
   await Promise.all(state.workspace.threads.map(thread => loadThreadHistory(thread, false)))
   if (renderAfter && load === state.workspaceLoad && canReplaceView()) render()
 }
 
+/**
+ * Quiet refresh of the workspace already on screen: re-fetch its payload and only
+ * rebuild the canvas when the payload really changed. The poll used to call
+ * `openDshWorkspace` every second, which re-ran the whole load (and its ticket)
+ * just to discover nothing had changed.
+ */
+async function refreshCurrentWorkspace() {
+  const current = state.workspace
+  if (current === null || typeof current.id !== 'string' || !current.id.startsWith('dsh:')) return false
+  const body = await api(`/synapse/api/workspaces/${current.id.slice(4)}`)
+  if (state.workspace !== current) return false
+  const fingerprint = JSON.stringify(body.workspace)
+  if (state.workspaceFingerprint === fingerprint) return false
+  state.workspaceFingerprint = fingerprint
+  state.workspace = body.workspace
+  if (!state.workspace.threads.some(thread => thread.id === state.activeId)) {
+    state.activeId = state.workspace.threads[0]?.id ?? null
+  }
+  if (canReplaceView()) render()
+  return true
+}
+
 async function refreshProjection() {
   const summariesChanged = await refreshSummaries({ renderAfter: false })
   if (!summariesChanged || state.workspace === null || !canReplaceView()) return summariesChanged
+  if (state.workspace.id.startsWith('dsh:')) return (await refreshCurrentWorkspace()) || summariesChanged
   if (state.selectedDshWorkspaceId !== null) await openDshWorkspace(state.selectedDshWorkspaceId)
   else await openWorkspace(state.workspace.id)
   return true

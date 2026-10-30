@@ -17,23 +17,28 @@ DSH 按 profile 分套安装插件：每套 profile 有自己的插件清单和 
 | 你平时怎么用 DSH | 要装的 profile |
 |---|---|
 | 桌面 App（DeepSeek Harness 客户端） | `desktop` |
-| 命令行 `dsh web` / 浏览器访问 | `web` |
-| 两种都用 | 两套各装一次 |
+| 命令行 `dsh web` / 浏览器访问（如果你自己也维护了这套） | `web` |
 
 - 从 App 内的插件页面安装时，App 会自动装进它自己用的那套，无需关心 profile。
-- **自检口诀：装完顶部看不到「会话地图」开关，就是装到另一套去了**，换成另一条命令再装一次即可。
+- **自检口诀：装完顶部看不到「会话地图」开关，就是装到另一套去了**，把 `--profile` 换成另一套的名字再装一次即可。
 - 桌面 App 装完需要**重启 App**；命令行装的，重启 `dsh web` 并刷新页面。
 
 ## 安装
+
+`dsh` 是 DSH 运行时自带的 launcher，位于 App 安装目录的 `resources\runtime\cli\bin\dsh.cmd`。先确认它能调用：
+
+```powershell
+dsh --version
+```
 
 ### 从 npm 安装
 
 ```powershell
 # 桌面 App
-corepack pnpm dsh plugin --profile desktop add dsh-synapse
+dsh plugin --profile desktop add dsh-synapse
 
-# 命令行 dsh web
-corepack pnpm dsh plugin --profile web add dsh-synapse
+# 命令行形态（仅当你有对应的 web profile）
+dsh plugin --profile web add dsh-synapse
 ```
 
 npm 包分发的是预构建产物，无需任何构建授权——最简单的安装方式。下方 GitHub 与本地 checkout 为备选。
@@ -41,7 +46,7 @@ npm 包分发的是预构建产物，无需任何构建授权——最简单的�
 ### 从 GitHub 安装
 
 ```powershell
-corepack pnpm dsh plugin --profile web add github:liangmianya/dsh-synapse
+dsh plugin --profile desktop add github:liangmianya/dsh-synapse
 ```
 
 GitHub 安装会运行本包的 `prepare` 脚本，通过 `node --check` 验证 JavaScript 语法。
@@ -60,7 +65,7 @@ allowBuilds:
 ### 本地开发安装
 
 ```powershell
-corepack pnpm dsh plugin --profile web add link:E:\path\to\dsh-synapse
+dsh plugin --profile desktop add link:E:\path\to\dsh-synapse
 ```
 
 `link:` 会直接引用本地 checkout，适合开发和调试。普通运行模式下修改代码后，建议重启宿主（桌面 App 或 `dsh web`）并刷新页面。
@@ -68,7 +73,7 @@ corepack pnpm dsh plugin --profile web add link:E:\path\to\dsh-synapse
 ## 启动
 
 ```powershell
-corepack pnpm dsh web
+dsh web
 ```
 
 默认地址：
@@ -80,7 +85,7 @@ http://127.0.0.1:3080/
 如果 3080 被占用，可以让 DSH 自动选择端口：
 
 ```powershell
-corepack pnpm dsh web --port 0
+dsh web --port 0
 ```
 
 启动后点击顶部“会话地图”进入 Synapse。不要同时运行两个共享同一 profile 的 `dsh web` 实例。
@@ -107,6 +112,23 @@ corepack pnpm dsh web --port 0
 - 一键定位当前会话。
 - 详情面板按 Markdown 渲染标题、列表、任务列表、引用、分割线、代码块、表格与链接。
 - 将工具调用和结果按 `callId` 折叠到对应助手回答中。
+
+顶部「对话 / 会话地图」开关也可以挪位置：
+
+- 按住开关左侧的**六点手柄**拖动，松手即记忆（存在浏览器本地，按浏览器各自独立）；
+- **双击手柄**复位到默认位置（标题栏下方居中）；
+- 手柄获得焦点后可用**方向键**微调，每次 8px；
+- 开关始终保留离屏幕边缘 8px 的余量，缩小窗口也不会被挤到看不见的地方。
+
+## 最近更新
+
+**0.6.0**
+
+- 画布与详情页按 DSH 宿主规格重做：一个 turn 成对的两张卡、详情页是一列对话、工具调用按 turn 折叠，卡片与侧栏的尺寸/动效对齐宿主。
+- 顶部开关可以拖动、记忆位置、双击复位、方向键微调（并入上游 0.5.6）。
+- 修正交互与渲染一致性：切换会话会把该会话带到视野内；折叠卡片不再移动画布；选区落在正文时侧栏与详情仍能更新；卡片右侧的折叠/分支按钮不再被相邻卡片遮住而点不到。
+- 修正工作区加载竞态：切换工作区不会再被后台轮询顶掉，画布重建次数从「每秒数次」降到「仅在数据变化时一次」。
+- `workspaces.json` 读不出来时**明确报错并保持只读**，既不用旧备份覆盖原文件，也不会把真实原因藏在一句通用提示后面。
 
 ## 配置
 
@@ -139,7 +161,7 @@ corepack pnpm dsh web --port 0
 卸载插件：
 
 ```powershell
-corepack pnpm dsh plugin --profile web remove dsh-synapse
+dsh plugin --profile web remove dsh-synapse
 ```
 
 `remove` 只移除插件依赖和 profile 激活层，不会删除画布数据。重新安装后，旧数据会继续使用并按需迁移。

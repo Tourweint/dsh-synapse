@@ -546,9 +546,11 @@ test('prevents collapse from hiding drafts or the active conversation and restor
   assert.match(toggle, /const visibleCards = conversationGraphView\(allCards, nextCollapsed\)\.cards/)
   assert.match(toggle, /draftPlacement\(allCards\)\?\.parent\.id/)
   assert.match(toggle, /请先完成或取消正在编辑的追问或分支/)
-  assert.match(toggle, /当前会话位于这个后续分支中/)
+  // Collapsing is a view operation: refusing it whenever the active conversation
+  // would be hidden made "−" look dead on exactly the newest card.
+  assert.doesNotMatch(toggle, /当前会话位于这个后续分支中/)
   assert.match(toggle, /window\.setTimeout/)
-  assert.match(toggle, /\.focus\(\)/)
+  assert.match(toggle, /\.focus\(\{ preventScroll: true \}\)/)
 })
 
 test('reveals hidden ancestor paths when a conversation becomes current', async () => {

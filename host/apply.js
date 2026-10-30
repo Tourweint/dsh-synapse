@@ -145,7 +145,11 @@ export function apply(ctx, config) {
       if (error instanceof InputError) return sendJson(res, 400, { error: error.message })
       if (error instanceof NotFoundError) return sendJson(res, 404, { error: error.message })
       ctx.logger.error(error instanceof Error ? error : new Error(String(error)))
-      return sendJson(res, 500, { error: 'Synapse 数据暂时不可用' })
+      // A store that cannot read its file carries the only actionable detail —
+      // the path. Passing it through beats a generic banner the user cannot act
+      // on, and it is the one failure the canvas must never paper over.
+      const unreadable = error instanceof Error && error.message.startsWith('synapse: cannot read')
+      return sendJson(res, 500, { error: unreadable ? error.message : 'Synapse 数据暂时不可用' })
     }
   }
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/synapse', handler: (_req, res) => { res.writeHead(302, { location: '/synapse/' }); res.end() } }), 'synapse: redirect')

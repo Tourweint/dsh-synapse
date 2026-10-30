@@ -21,6 +21,7 @@ DeepSeek Harness（DSH）的会话地图插件：零运行时依赖，无构建�
 - [侧边栏与外壳](#侧边栏与外壳)
 - [顶栏：标签行与右上角](#顶栏标签行与右上角)
 - [页面级开关：对话 / 会话地图](#页面级开关对话--会话地图clientjs)
+- [轮询、装载与交互去抖](#轮询装载与交互去抖)
 - [配色只住在一个文件里](#配色只住在一个文件里)
 - [数据位置](#数据位置)
 
@@ -126,6 +127,7 @@ vm 切片要显式列出模块（`pickApp('text', 'markdown')`），所以改模
 2. **一个活节点只能被匹配一次**（`keyed.delete(key)`）。否则第二个同 key 的节点会覆盖第一个，原节点被当作未匹配删除。
 3. **`morphHoldsCaret()` 只冻结光标所有者本身**（以及 contenteditable 宿主），绝不能 `contains()` 整条祖先链：页面里只要存在选区或输入框聚焦，`<main>` 就会被判定为光标宿主，此后所有 `render()` 变成空操作，表现为"点啥都没用"。
    而且**只有输入控件才算光标所有者**（`isContentEditable` / `input` / `textarea` / `select`）：聚焦的 `<button>` 不持有光标，冻结它会让它停在上一帧的 class/aria 上——点击「对话」后那个按钮被跳过，两个标签一起掉高亮就是这个坑（`test/morph-dom.test.js` 有对应用例）。
+   **冻结只意味着"不动它的子节点"**：`morphNode` 先打属性、再按 `!morphHoldsCaret(from)` 决定是否 `morphChildren`。早退回 `from` 会让被冻结的控件连 `disabled` / class / aria 都停在上一帧（上游 0.5.6 修的正是这一条）。
 
 另外：地图 / 详情两个视图根节点是 `<section>`，必须带 `data-morph-key`，否则会被按位置配成一对互相打补丁，切换后卡片丢失。
 
@@ -221,9 +223,22 @@ Markdown 只走 `.md` 一套排版（`styles/markdown.css`）。`markdownBlock()
 
 那颗悬浮胶囊不归任何视图管：它是一个 `position: fixed` 的页面级控件，`z-index` 高于地图 overlay，否则进了地图就出不来。
 
-**暗色填充是一块会走的 thumb**（`.dsh-synapse-switch-thumb`），不是两个按钮各自画背景——切视图时读作"填充移过去了"，而不是"两个标签换色"。它由 `moveThumb()` 量出来：标签宽度不等，不能假设各占一半；原点取 `dialogButton` 的左缘（恰好等于 thumb 的静止位），这样不用写 border/padding 常量。挂载首帧不做动画，窗口 resize 与字体换入后重测；没有布局的环境（`test/client-bridge.test.js` 的假 DOM）直接跳过，thumb 宽 0 不显示。
+**暗色填充是一块会走的 thumb**（`.dsh-synapse-switch-thumb`），不是两个按钮各自画背景——切视图时读作"填充移过去了"，而不是"两个标签换色"。它由 `moveThumb()` 量出来：标签宽度不等，不能假设各占一半；原点取 `dialogButton` 的左缘（`left` 也是量出来写进内联样式的，因为 grip 现在挡在按钮前面，CSS 里的 `left: 3px` 已经不是静止位），距离用 `box.left - base.left` 算，不用写 border/padding 常量。挂载首帧不做动画，窗口 resize 与字体换入后重测；没有布局的环境（`test/client-bridge.test.js` 的假 DOM）直接跳过，thumb 宽 0 不显示。
+
+**整颗胶囊可以拖走**（面板层级上来自上游 0.5.6）：只有左侧 `.dsh-synapse-grip`（六点手柄）起手，两个标签仍是普通按钮，所以拖动不会吃掉视图切换。位置存 `dsh-synapse:switch-position:v1`（按浏览器），双击手柄复位，手柄聚焦后方向键按 8px 步进；`clampSwitchPosition` 保证离屏幕边缘留 8px。一旦有存储位置，胶囊就从 CSS 的"居中座位"切到显式 `left/top`，**必须同时把 `transform` 置 `none`**，否则会偏半个宽度。resize 时由 `keepSwitchInView` 先重新钳位再重测 thumb——两件事绑在同一个监听里，别退回两个 `resize` 回调。
 
 进出地图的淡入是 `.dsh-synapse-overlay.is-opening iframe { opacity: 0 }`，`is-opening` 本身仍负责在首帧之前藏住 iframe，别删。
+
+## 轮询、装载与交互去抖
+
+1 秒一次的 `pollProjection()` 是画布"点了没反应"的老来源，四条防线缺一不可：
+
+- **桥消息带签名**：`synapse:workspaces` 用 `workspacesSignature`（工作区数组 + 排序后的归档 id）、`synapse:current-session` 用 `sessionSignature()`（只取 id / 标题 / cwd / running）判等，没变就直接 `return`。父页面每个流式分块都会重发这两条，照单全收等于每秒重建数次画布。
+- **装载单飞**：`state.workspaceLoadBusy` 挡住并发装载，`state.workspaceLoadOwner = 'user'` 让后台轮询不能顶掉用户刚点的工作区（`openDshWorkspace` 的 `userInitiated`）。`finally` 里一定要清 owner，否则一次抛错就把画布锁死。
+- **轮询只静默刷新**：`refreshCurrentWorkspace()` 重取当前 payload，用 `state.workspaceFingerprint` 比对，相同就不 render。
+- **切会话要带相机**：`select-thread` / 用户切工作区之后都要 `requestAnimationFrame(() => focusActiveCard())`。状态换了而相机没动，看起来就是"按钮死了"（卡片的 x 可能是 3047/9252，视口只有 1574px）。
+
+折叠卡片是**纯视图操作**：只挡"草稿父卡会被藏起来"这一种，不因为当前会话落在被折叠的子树里就拒绝；也不动相机，焦点用 `focus({ preventScroll: true })` 还回去。卡片右缘的 `+ / −` 挂着 `right: -10px`，所以 `.thread-card:hover, .thread-card:focus-within` 必须抬 `z-index`，否则后画的邻居会把它吃掉。
 
 ## 配色只住在一个文件里
 
@@ -239,5 +254,7 @@ Markdown 只走 `.md` 一套排版（`styles/markdown.css`）。`markdownBlock()
 |---|---|---|
 | `$DSH_HOME/synapse/workspaces.json` | 画布布局 + 每轮 280 字预览（schema v6），**正文不在这里** | 只丢布局，不丢会话 |
 | `$DSH_HOME/sessions/--<cwd slug>--/session-*/` | DSH 会话日志，正文按需从这里读 | 才是真的丢正文 |
+
+**`workspaces.json` 读不出来时不许"修"**：`WorkspaceStore.load()` 直接抛 `synapse: cannot read <path>`，`ready` 拒绝、所有 mutation 拒绝运行，文件原样留着等人去修。曾经的 `.v5-backup` 回退（上游 0.5.5 试过、0.5.6 撤回）会用一个没人写过的旧快照盖掉唯一一份数据，仅一次瞬时读失败就够。`host/apply.js` 的 500 分支把这条消息原样透给页面，横幅里才有能动手的文件路径——别再换成通用提示。
 
 调试用的临时产物（`dev/harness/node_modules`、`%TEMP%` 下的 jsdom 环境）都不进 git；`dev/` 也不在 `package.json` 的 `files` 白名单里，不会进 npm 包。

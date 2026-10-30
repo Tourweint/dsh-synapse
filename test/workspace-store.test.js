@@ -32,6 +32,26 @@ test('persists a workspace, a DSH-linked thread, and a message', async () => {
   assert.match(await readFile(dataFile, 'utf8'), /"version": ?6/)
 })
 
+test('refuses to load an unreadable data file, and never rewrites it', async () => {
+  // An unreadable workspaces.json is the only copy of the canvas. An earlier
+  // revision restored a .v5-backup copy over it and saved, which discarded what
+  // the broken file still held and rolled the map back to a snapshot of unknown
+  // age. The store must fail instead, and leave both files byte-identical.
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-broken-'))
+  const dataFile = join(directory, 'state.json')
+  const broken = '{"version":5,"workspaces":[{"id":"w1","threads":['
+  const backup = JSON.stringify({ version: 5, hiddenSessionIds: [], workspaces: [] })
+  await writeFile(dataFile, broken, 'utf8')
+  await writeFile(`${dataFile}.v5-backup`, backup, 'utf8')
+
+  const store = new WorkspaceStore(dataFile)
+  await assert.rejects(store.ready, /synapse: cannot read/)
+  // No mutation may run on a store whose state never loaded.
+  await assert.rejects(store.create('x'), /synapse: cannot read/)
+
+  assert.equal(await readFile(dataFile, 'utf8'), broken)
+  assert.equal(await readFile(`${dataFile}.v5-backup`, 'utf8'), backup)
+})
 test('projects committed DSH events once, folds tool process into the assistant card, and keeps fork lineage', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'dsh-synapse-projection-'))
   const store = new WorkspaceStore(join(directory, 'state.json'))
