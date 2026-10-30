@@ -17,23 +17,28 @@ DSH installs plugins per profile. Each profile keeps its own plugin list and `no
 | How you run DSH | Profile to use |
 |---|---|
 | Desktop app (DeepSeek Harness client) | `desktop` |
-| `dsh web` on the command line | `web` |
-| Both | Install once per profile |
+| `dsh web` on the command line (if you keep that profile) | `web` |
 
 - Installing from the app's plugin page already targets the profile the app uses, so you do not pick one there.
-- **Quick self-check: if the "会话地图 / Session map" switch never appears, the plugin went into the other profile** — run the other command and install again.
+- **Quick self-check: if the "会话地图 / Session map" switch never appears, the plugin went into the other profile** — install again with the other `--profile`.
 - A desktop install takes effect after **restarting the app**; a command-line install takes effect after restarting `dsh web` and refreshing the page.
 
 ## Installation
+
+`dsh` is the launcher that ships with the DSH runtime, at `resources\runtime\cli\bin\dsh.cmd` inside the app directory. Check that it responds first:
+
+```powershell
+dsh --version
+```
 
 ### Install from npm
 
 ```powershell
 # Desktop app
-corepack pnpm dsh plugin --profile desktop add dsh-synapse
+dsh plugin --profile desktop add dsh-synapse
 
-# Command line (dsh web)
-corepack pnpm dsh plugin --profile web add dsh-synapse
+# Command line (only if you keep a web profile)
+dsh plugin --profile web add dsh-synapse
 ```
 
 The npm package ships prebuilt code, so no build-script permission is needed — the simplest install. GitHub and local-checkout routes below are alternatives.
@@ -41,7 +46,7 @@ The npm package ships prebuilt code, so no build-script permission is needed —
 ### Install from GitHub
 
 ```powershell
-corepack pnpm dsh plugin --profile web add github:liangmianya/dsh-synapse
+dsh plugin --profile desktop add github:liangmianya/dsh-synapse
 ```
 
 GitHub installs run the package `prepare` script, which validates JavaScript syntax with `node --check`.
@@ -60,7 +65,7 @@ Use the complete key containing the tarball URL and commit, not the bare package
 ### Install a local checkout
 
 ```powershell
-corepack pnpm dsh plugin --profile web add link:E:\path\to\dsh-synapse
+dsh plugin --profile desktop add link:E:\path\to\dsh-synapse
 ```
 
 The `link:` form references the local checkout directly and is recommended for development. In a normal run, restart the host (the desktop app or `dsh web`) and refresh the page after editing the plugin.
@@ -68,7 +73,7 @@ The `link:` form references the local checkout directly and is recommended for d
 ## Start DSH Web
 
 ```powershell
-corepack pnpm dsh web
+dsh web
 ```
 
 Default address:
@@ -80,7 +85,7 @@ http://127.0.0.1:3080/
 Let DSH choose a free port when 3080 is occupied:
 
 ```powershell
-corepack pnpm dsh web --port 0
+dsh web --port 0
 ```
 
 Open the top **Session Map** switch after startup. Do not run two `dsh web` processes that share the same profile.
@@ -151,7 +156,7 @@ Add the actual host to `trustedHosts` when exposing DSH on a LAN.
 Remove the plugin:
 
 ```powershell
-corepack pnpm dsh plugin --profile web remove dsh-synapse
+dsh plugin --profile web remove dsh-synapse
 ```
 
 `remove` deletes the dependency and profile activation layer but keeps canvas data. Reinstalling reuses and migrates the old data when necessary.

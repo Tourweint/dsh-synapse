@@ -30,18 +30,26 @@
 
 | 你平时怎么用 DSH | 要装的 profile | 安装命令 |
 |---|---|---|
-| 桌面 App（DeepSeek Harness 客户端） | `desktop` | `corepack pnpm dsh plugin --profile desktop add dsh-synapse` |
-| 命令行 `dsh web` / 浏览器访问 | `web` | `corepack pnpm dsh plugin --profile web add dsh-synapse` |
-| 两种都用 | 两套各装一次 | 两条命令都执行 |
+| 桌面 App（DeepSeek Harness 客户端） | `desktop` | `dsh plugin --profile desktop add dsh-synapse` |
+| 命令行 `dsh web` / 浏览器访问（如果你也维护了这套） | `web` | `dsh plugin --profile web add dsh-synapse` |
 
 - 从 App 内的插件页面安装时，App 会自动装进它自己用的那套，不用管 profile。
-- **自检口诀：装完顶部看不到「会话地图」开关，就是装到另一套去了**，换成另一条命令再装一次即可。
+- **自检口诀：装完顶部看不到「会话地图」开关，就是装到另一套去了**，把 `--profile` 换成另一套的名字再装一次即可。
 - 桌面 App 装完需要**重启 App**（Host 侧插件在启动时加载）；命令行装的，重启 `dsh web` 并刷新页面。
 
+`dsh` 是 DSH 运行时自带的 launcher，位于 App 安装目录的 `resources\runtime\cli\bin\dsh.cmd`。先确认它能调用：
+
 ```powershell
-# 命令行方式：装好后启动
-corepack pnpm dsh plugin --profile web add dsh-synapse
-corepack pnpm dsh web
+dsh --version
+```
+
+```powershell
+# 装进桌面 App 那套 profile
+dsh plugin --profile desktop add dsh-synapse
+
+# 需要命令行形态时（装完重启 dsh web 并刷新页面）
+dsh plugin --profile web add dsh-synapse
+dsh web
 ```
 
 启动后，在 DSH 顶部切换到 **会话地图**。Synapse 复用现有的 DSH Web Server，不会启动第二个应用或代理系统。

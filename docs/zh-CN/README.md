@@ -17,23 +17,28 @@ DSH 按 profile 分套安装插件：每套 profile 有自己的插件清单和 
 | 你平时怎么用 DSH | 要装的 profile |
 |---|---|
 | 桌面 App（DeepSeek Harness 客户端） | `desktop` |
-| 命令行 `dsh web` / 浏览器访问 | `web` |
-| 两种都用 | 两套各装一次 |
+| 命令行 `dsh web` / 浏览器访问（如果你自己也维护了这套） | `web` |
 
 - 从 App 内的插件页面安装时，App 会自动装进它自己用的那套，无需关心 profile。
-- **自检口诀：装完顶部看不到「会话地图」开关，就是装到另一套去了**，换成另一条命令再装一次即可。
+- **自检口诀：装完顶部看不到「会话地图」开关，就是装到另一套去了**，把 `--profile` 换成另一套的名字再装一次即可。
 - 桌面 App 装完需要**重启 App**；命令行装的，重启 `dsh web` 并刷新页面。
 
 ## 安装
+
+`dsh` 是 DSH 运行时自带的 launcher，位于 App 安装目录的 `resources\runtime\cli\bin\dsh.cmd`。先确认它能调用：
+
+```powershell
+dsh --version
+```
 
 ### 从 npm 安装
 
 ```powershell
 # 桌面 App
-corepack pnpm dsh plugin --profile desktop add dsh-synapse
+dsh plugin --profile desktop add dsh-synapse
 
-# 命令行 dsh web
-corepack pnpm dsh plugin --profile web add dsh-synapse
+# 命令行形态（仅当你有对应的 web profile）
+dsh plugin --profile web add dsh-synapse
 ```
 
 npm 包分发的是预构建产物，无需任何构建授权——最简单的安装方式。下方 GitHub 与本地 checkout 为备选。
@@ -41,7 +46,7 @@ npm 包分发的是预构建产物，无需任何构建授权——最简单的�
 ### 从 GitHub 安装
 
 ```powershell
-corepack pnpm dsh plugin --profile web add github:liangmianya/dsh-synapse
+dsh plugin --profile desktop add github:liangmianya/dsh-synapse
 ```
 
 GitHub 安装会运行本包的 `prepare` 脚本，通过 `node --check` 验证 JavaScript 语法。
@@ -60,7 +65,7 @@ allowBuilds:
 ### 本地开发安装
 
 ```powershell
-corepack pnpm dsh plugin --profile web add link:E:\path\to\dsh-synapse
+dsh plugin --profile desktop add link:E:\path\to\dsh-synapse
 ```
 
 `link:` 会直接引用本地 checkout，适合开发和调试。普通运行模式下修改代码后，建议重启宿主（桌面 App 或 `dsh web`）并刷新页面。
@@ -68,7 +73,7 @@ corepack pnpm dsh plugin --profile web add link:E:\path\to\dsh-synapse
 ## 启动
 
 ```powershell
-corepack pnpm dsh web
+dsh web
 ```
 
 默认地址：
@@ -80,7 +85,7 @@ http://127.0.0.1:3080/
 如果 3080 被占用，可以让 DSH 自动选择端口：
 
 ```powershell
-corepack pnpm dsh web --port 0
+dsh web --port 0
 ```
 
 启动后点击顶部“会话地图”进入 Synapse。不要同时运行两个共享同一 profile 的 `dsh web` 实例。
@@ -151,7 +156,7 @@ corepack pnpm dsh web --port 0
 卸载插件：
 
 ```powershell
-corepack pnpm dsh plugin --profile web remove dsh-synapse
+dsh plugin --profile web remove dsh-synapse
 ```
 
 `remove` 只移除插件依赖和 profile 激活层，不会删除画布数据。重新安装后，旧数据会继续使用并按需迁移。
