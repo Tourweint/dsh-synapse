@@ -104,6 +104,22 @@ The canvas supports:
 - Smooth card scrolling and Markdown table rendering.
 - Folding tool calls and results into the related assistant answer by `callId`.
 
+The **Dialogue / Session Map** switch can be moved too:
+
+- Drag it by the six-dot grip on its left edge; the position is remembered per browser.
+- Double-click the grip to return it to its shipped seat (centred under the window chrome).
+- With the grip focused, the arrow keys nudge it by 8px.
+- It always keeps an 8px grab margin from the viewport edges, so shrinking the window cannot strand it off screen.
+
+## Recent changes
+
+**0.5.6**
+
+- The top switch is draggable, remembers where you left it, and resets on a double-click (new).
+- Interaction and rendering consistency: switching a conversation now brings it into view; folding a card no longer moves the canvas; a text selection in an answer no longer freezes the sidebar and the details panel; the fold/branch buttons on a card's right edge are no longer covered by the neighbouring card.
+- Workspace switching no longer races the background poll, and the canvas is rebuilt only when data actually changes instead of several times a second.
+- An unreadable `workspaces.json` now fails loudly and read-only instead of restoring an old backup over it (the 0.5.5 fallback was reverted).
+
 ## Configuration
 
 The plugin is inserted through the profile's `cordis.patch.yml`. Override it in your own patch by targeting the row id `synapse`.
