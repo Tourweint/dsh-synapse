@@ -86,6 +86,8 @@ cd dev/harness; npm install; npm test     # 真实渲染 + 真实点击（需 js
 
 `build` 只做语法检查，没有打包步骤。
 
+**跟踪上游**：`origin` 是自己的 fork（`Tourweint/dsh-synapse`），上游原作者在 `upstream`（`liangmianya/dsh-synapse`）。跟进用 `git fetch upstream && git merge upstream/main`——上游还在用 `app.js` / `styles.css` / 大 `index.js`，冲突一定是"本地已拆分"，解法是保留本地结构、把他的修复手工落进对应模块（`826fe78` 是第一次这么做的样板）。版本号已经越过上游（本地 `0.6.0` vs 上游 `0.5.6`），别再退回上游的号。
+
 提交信息照仓库既有风格：`type: 小写祈使句`（`feat` / `fix` / `docs` / `test` / `chore`），正文写**为什么**，不逐条罗列改动。
 
 ## 在本机 App 里调试
